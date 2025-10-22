@@ -1,0 +1,71 @@
+# .gitignore file created for free with Tower (https://www.git-tower.com/)
+# For suggestions or improvements please contact us using support@git-tower.com
+# Generated on 2025-10-22
+# Includes: makefile
+
+### Universal ###
+# Common files that should be ignored in all projects
+
+# Logs
+*.log
+# Temporary files
+*.tmp
+*~
+
+*.bak
+# Environment files (containing secrets, API keys, credentials)
+.env
+*.env
+.env.*
+
+# Local configuration that shouldn't be shared
+*.local
+
+### Makefile ###
+# makefile build tool specific files
+
+# Make
+*.o
+*.d
+*.ko
+*.obj
+
+*.elf
+*.ilk
+*.map
+*.exp
+*.gch
+
+*.pch
+*.lib
+*.a
+*.la
+*.lo
+
+*.dll
+*.so
+*.so.*
+*.dylib
+*.exe
+
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.mod*
+
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+
+dkms.conf
+.deps/
+.libs/
