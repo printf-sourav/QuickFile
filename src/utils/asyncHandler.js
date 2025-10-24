@@ -1,13 +1,9 @@
-const asyncHandler = (requestHandler)=>(
-    (req,res,next)=>{
-        Promise
-        .then(
-            requestHandler(req,res,next)
-        )
-        .catch((err)=>{
-            next(err)
-        })
-
+// ...existing code...
+const asyncHandler = (requestHandler) => {
+    return (req, res, next) => {
+        // ensure handler runs and promise rejections are forwarded to Express
+        Promise.resolve(requestHandler(req, res, next)).catch(next)
     }
-)
-export {asyncHandler}
+}
+export { asyncHandler }
+// ...existing code...
