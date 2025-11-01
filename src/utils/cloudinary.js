@@ -16,6 +16,7 @@ const  uploadOnCloudinary = async (localFilePath)=>{
         if(!localFilePath) return null;
 
         const response= await v2.uploader.upload(localFilePath,{
+            folder: "quickFile",
             resource_type : "auto"
         })
         console.log(response)
