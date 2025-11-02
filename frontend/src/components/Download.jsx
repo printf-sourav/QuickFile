@@ -30,24 +30,31 @@ const Download = () => {
           
           console.log('Downloading from:', url);
           
-          // Fetch file as blob and force download
-          const fileResponse = await fetch(url);
-          const blob = await fileResponse.blob();
-          
-          // Create blob URL and trigger download
-          const blobUrl = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = filename || 'download';
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
-          
-          // Cleanup
-          setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-          }, 100);
+          try {
+            // Try to fetch as blob for force download
+            const fileResponse = await fetch(url, { mode: 'cors' });
+            const blob = await fileResponse.blob();
+            
+            // Create blob URL and trigger download
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'download';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            setTimeout(() => {
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(blobUrl);
+            }, 100);
+          } catch (fetchError) {
+            // Fallback: Open Cloudinary URL with download parameter
+            console.log('Blob download failed, using direct link:', fetchError);
+            const downloadUrl = url.includes('?') ? `${url}&fl_attachment` : `${url}?fl_attachment`;
+            window.location.href = downloadUrl;
+          }
           
           setStatus('success');
           

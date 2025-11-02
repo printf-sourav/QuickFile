@@ -50,8 +50,32 @@ const AllFiles = () => {
     }
   };
 
-  const handleDownload = (url) => {
-    window.open(url, '_blank');
+  const handleDownload = async (url, filename) => {
+    try {
+      // Try to fetch as blob for force download
+      const response = await fetch(url, { mode: 'cors' });
+      const blob = await response.blob();
+      
+      // Create blob URL and trigger download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'download';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (error) {
+      // Fallback: Use Cloudinary's download parameter
+      console.log('Blob download failed, using direct link');
+      const downloadUrl = url.includes('?') ? `${url}&fl_attachment` : `${url}?fl_attachment`;
+      window.location.href = downloadUrl;
+    }
   };
 
   const formatFileSize = (bytes) => {
@@ -104,7 +128,7 @@ const AllFiles = () => {
                       className="btn btn-primary btn-sm"
                       onClick={() => {
                         console.log('Download button clicked');
-                        handleDownload(file.url);
+                        handleDownload(file.url, file.filename);
                       }}
                     >
                       Download
