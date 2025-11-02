@@ -172,24 +172,37 @@ const generateShareLink = asyncHandler(async(req,res)=>{
 const downloadViaToken = asyncHandler(async(req,res)=>{
     const token = req.params.token
 
-    const decoded = jwt.verify(token,process.env.SHARE_LINK_TOKEN);
-
-    if(!decoded){
-        throw new apiError(404,"invalid token or its expired")
-    }
-
-    const fileId= decoded._id
-
-    const file = await File.findByIdAndUpdate(fileId,{
-        $inc:{downloadCount:1}
-    });
-
-    if(!file){
-        throw new apiError(404,"File not found");
-    }
-
-    // Fetch the file from Cloudinary and stream it to the client
     try {
+        const decoded = jwt.verify(token, process.env.SHARE_LINK_TOKEN);
+
+        if(!decoded){
+            throw new apiError(404, "Invalid token or it's expired")
+        }
+
+        const fileId = decoded._id
+
+        const file = await File.findByIdAndUpdate(fileId, {
+            $inc: {downloadCount: 1}
+        }, {new: true});
+
+        if(!file){
+            throw new apiError(404, "File not found");
+        }
+
+        // For Vercel deployment, redirect to Cloudinary URL directly
+        // This avoids serverless function timeout issues
+        if(process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+            // Return file metadata and URL for client-side download
+            return res.status(200).json(
+                new apiResponse(200, {
+                    url: file.url,
+                    filename: file.filename,
+                    size: file.size
+                }, "File ready for download")
+            );
+        }
+
+        // For local development, stream the file
         const fileResponse = await axios.get(file.url, {
             responseType: 'stream'
         });
@@ -231,7 +244,13 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
         fileResponse.data.pipe(res);
     } catch (error) {
         console.error('Download error:', error);
-        throw new apiError(500, "Error downloading file from storage");
+        if(error.name === 'JsonWebTokenError') {
+            throw new apiError(400, "Invalid download token");
+        }
+        if(error.name === 'TokenExpiredError') {
+            throw new apiError(400, "Download link has expired");
+        }
+        throw new apiError(500, "Error downloading file");
     }
 
 })
