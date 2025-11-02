@@ -188,9 +188,11 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             responseType: 'stream'
         });
 
-        // Set headers to force download with original filename
-        res.setHeader('Content-Type', fileResponse.headers['content-type'] || 'application/octet-stream');
+        // Force download by using application/octet-stream for all file types
+        // This prevents browser from trying to display PDFs, images, videos inline
+        res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+        res.setHeader('Cache-Control', 'no-cache');
         
         if (fileResponse.headers['content-length']) {
             res.setHeader('Content-Length', fileResponse.headers['content-length']);
@@ -232,9 +234,11 @@ const downloadFileById = asyncHandler(async(req,res)=>{
         responseType: 'stream'
     });
 
-    // Set headers to force download with original filename
-    res.setHeader('Content-Type', fileResponse.headers['content-type'] || 'application/octet-stream');
+    // Force download by using application/octet-stream for all file types
+    // This prevents browser from trying to display PDFs, images, videos inline
+    res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+    res.setHeader('Cache-Control', 'no-cache');
     
     if (fileResponse.headers['content-length']) {
         res.setHeader('Content-Length', fileResponse.headers['content-length']);
