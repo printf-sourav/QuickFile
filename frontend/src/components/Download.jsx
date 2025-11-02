@@ -29,22 +29,16 @@ const Download = () => {
           const { url, filename } = response.data.data;
           
           console.log('Downloading from:', url);
+          console.log('Filename:', filename);
           
-          // Add Cloudinary download flag to force download
-          const downloadUrl = url.replace('/upload/', '/upload/fl_attachment/');
+          // Add Cloudinary download flag with filename to force download with correct name
+          const encodedFilename = encodeURIComponent(filename);
+          const downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFilename}/`);
           
-          // Create hidden link and trigger download
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = filename || 'download';
-          link.style.display = 'none';
-          document.body.appendChild(link);
-          link.click();
+          console.log('Download URL:', downloadUrl);
           
-          // Cleanup
-          setTimeout(() => {
-            document.body.removeChild(link);
-          }, 100);
+          // Trigger download
+          window.location.href = downloadUrl;
           
           setStatus('success');
           

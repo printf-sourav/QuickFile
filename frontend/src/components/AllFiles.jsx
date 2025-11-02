@@ -51,21 +51,13 @@ const AllFiles = () => {
   };
 
   const handleDownload = (url, filename) => {
-    // Add Cloudinary download flag to force download
-    const downloadUrl = url.replace('/upload/', '/upload/fl_attachment/');
+    // Add Cloudinary download flag with filename to force download with correct name
+    // fl_attachment:filename tells Cloudinary to use the specified filename
+    const encodedFilename = encodeURIComponent(filename);
+    const downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFilename}/`);
     
-    // Create hidden link and trigger download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = filename || 'download';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    setTimeout(() => {
-      document.body.removeChild(link);
-    }, 100);
+    // Trigger download
+    window.location.href = downloadUrl;
   };
 
   const formatFileSize = (bytes) => {
