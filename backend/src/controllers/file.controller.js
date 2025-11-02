@@ -3,10 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import {apiError} from "../utils/apiError.js"
 import { apiResponse } from "../utils/apiResponse.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken"
 import mongoose  from "mongoose";
-import { response } from "express";
 import axios from "axios"
 
 
@@ -94,8 +92,6 @@ const getAllFiles = asyncHandler(async(req,res,next)=>{
 })
 const deleteFile = asyncHandler(async(req,res,next)=>{
     const {FileId} = req.params;
-    console.log('Delete request for FileId:', FileId);
-    console.log('User:', req.user?._id);
     
     if(!FileId) {
         throw new apiError(400,"Please mention file id");
@@ -109,8 +105,6 @@ const deleteFile = asyncHandler(async(req,res,next)=>{
     
     // Delete the file
     await File.findByIdAndDelete(FileId);
-    
-    console.log('File deleted successfully:', FileId);
     
     return res.status(200)
     .json(
@@ -189,20 +183,7 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found");
         }
 
-        // For Vercel deployment, redirect to Cloudinary URL directly
-        // This avoids serverless function timeout issues
-        if(process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-            // Return file metadata and URL for client-side download
-            return res.status(200).json(
-                new apiResponse(200, {
-                    url: file.url,
-                    filename: file.filename,
-                    size: file.size
-                }, "File ready for download")
-            );
-        }
-
-        // For local development, stream the file
+        // Stream the file from Cloudinary
         const fileResponse = await axios.get(file.url, {
             responseType: 'stream'
         });
