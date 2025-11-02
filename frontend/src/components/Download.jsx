@@ -30,15 +30,24 @@ const Download = () => {
           
           console.log('Downloading from:', url);
           
-          // Download directly from Cloudinary URL
+          // Fetch file as blob and force download
+          const fileResponse = await fetch(url);
+          const blob = await fileResponse.blob();
+          
+          // Create blob URL and trigger download
+          const blobUrl = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
-          link.href = url;
+          link.href = blobUrl;
           link.download = filename || 'download';
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
+          link.style.display = 'none';
           document.body.appendChild(link);
           link.click();
-          document.body.removeChild(link);
+          
+          // Cleanup
+          setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+          }, 100);
           
           setStatus('success');
           
