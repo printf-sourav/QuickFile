@@ -16,45 +16,31 @@ const Download = () => {
       try {
         setHasDownloaded(true);
         
-        // Download file from backend
-        const response = await api.patch(`/files/download/${token}`, {}, {
-          responseType: 'blob'
-        });
+        // Get file metadata from backend
+        const response = await api.patch(`/files/download/${token}`);
         
-        // Get filename from content-disposition header
-        const contentDisposition = response.headers['content-disposition'];
-        let filename = 'download';
-        
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
-          if (filenameMatch && filenameMatch[1]) {
-            filename = decodeURIComponent(filenameMatch[1]);
-          }
-        }
-        
-        // Create blob and download
-        const contentType = response.headers['content-type'] || 'application/octet-stream';
-        const blob = new Blob([response.data], { type: contentType });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        
-        // Cleanup
-        setTimeout(() => {
+        if (response.data.success && response.data.data.url) {
+          const { url, filename } = response.data.data;
+          
+          // Download directly from Cloudinary URL
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename || 'download';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          document.body.appendChild(link);
+          link.click();
           document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        }, 100);
-        
-        setStatus('success');
-        
-        // Redirect to landing page after 3 seconds
-        setTimeout(() => {
-          navigate('/');
-        }, 3000);
+          
+          setStatus('success');
+          
+          // Redirect to landing page after 3 seconds
+          setTimeout(() => {
+            navigate('/');
+          }, 3000);
+        } else {
+          throw new Error('Invalid response from server');
+        }
       } catch (err) {
         console.error('Download error:', err);
         setStatus('error');

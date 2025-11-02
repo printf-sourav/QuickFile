@@ -183,48 +183,16 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found");
         }
 
-        // Stream the file from Cloudinary
-        const fileResponse = await axios.get(file.url, {
-            responseType: 'stream'
-        });
-
-        // Get content type from cloudinary response or determine from filename
-        let contentType = fileResponse.headers['content-type'];
-        
-        // If content type not available, try to determine from file extension
-        if (!contentType || contentType === 'application/octet-stream') {
-            const ext = file.filename.split('.').pop().toLowerCase();
-            const mimeTypes = {
-                'pdf': 'application/pdf',
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif',
-                'doc': 'application/msword',
-                'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'xls': 'application/vnd.ms-excel',
-                'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'txt': 'text/plain',
-                'zip': 'application/zip',
-                'mp4': 'video/mp4',
-                'mp3': 'audio/mpeg'
-            };
-            contentType = mimeTypes[ext] || 'application/octet-stream';
-        }
-
-        // Set headers to force download with proper filename
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
-        
-        // Set content length if available
-        if (fileResponse.headers['content-length']) {
-            res.setHeader('Content-Length', fileResponse.headers['content-length']);
-        }
-        
-        // Pipe the file stream to response
-        fileResponse.data.pipe(res);
+        // Return direct Cloudinary URL for client-side download
+        // This works better with CORS and frontend deployments
+        return res.status(200).json(
+            new apiResponse(200, {
+                url: file.url,
+                filename: file.filename,
+                size: file.size
+            }, "File ready for download")
+        );
     } catch (error) {
-        console.error('Download error:', error);
         if(error.name === 'JsonWebTokenError') {
             throw new apiError(400, "Invalid download token");
         }

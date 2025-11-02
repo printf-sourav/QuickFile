@@ -3,19 +3,24 @@ import cors from "cors"
 import cookieParser from 'cookie-parser';
 
 const app =express();
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://quick-file.vercel.app",
-  "https://quick-file.vercel.app/"
-];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost for development
+    if (origin.includes('localhost')) return callback(null, true);
+    
+    // Allow Vercel deployments
+    if (origin.includes('vercel.app')) return callback(null, true);
+    
+    // Allow configured CORS origin from environment variable
+    if (process.env.CORS_ORIGIN && origin === process.env.CORS_ORIGIN) {
+      return callback(null, true);
     }
+    
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 }));
