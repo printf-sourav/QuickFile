@@ -191,11 +191,7 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
         // Force download by using application/octet-stream for all file types
         // This prevents browser from trying to display PDFs, images, videos inline
         res.setHeader('Content-Type', 'application/octet-stream');
-        
-        // Use both filename and filename* for better browser compatibility
-        const encodedFilename = encodeURIComponent(file.filename);
-        const asciiFilename = file.filename.replace(/[^\x00-\x7F]/g, '_'); // Replace non-ASCII with underscore
-        res.setHeader('Content-Disposition', `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`);
+        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
         res.setHeader('Cache-Control', 'no-cache');
         
         if (fileResponse.headers['content-length']) {
@@ -241,11 +237,7 @@ const downloadFileById = asyncHandler(async(req,res)=>{
     // Force download by using application/octet-stream for all file types
     // This prevents browser from trying to display PDFs, images, videos inline
     res.setHeader('Content-Type', 'application/octet-stream');
-    
-    // Use both filename and filename* for better browser compatibility
-    const encodedFilename = encodeURIComponent(file.filename);
-    const asciiFilename = file.filename.replace(/[^\x00-\x7F]/g, '_'); // Replace non-ASCII with underscore
-    res.setHeader('Content-Disposition', `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
     res.setHeader('Cache-Control', 'no-cache');
     
     if (fileResponse.headers['content-length']) {

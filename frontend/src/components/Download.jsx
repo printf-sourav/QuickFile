@@ -30,12 +30,14 @@ const Download = () => {
         let filename = 'download';
         
         if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          // Extract filename from: attachment; filename="test.pdf"
+          const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
           if (filenameMatch && filenameMatch[1]) {
-            filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
+            filename = filenameMatch[1];
           }
         }
         
+        console.log('Content-Disposition:', contentDisposition);
         console.log('Downloaded filename:', filename);
         
         // Create blob URL and trigger download
