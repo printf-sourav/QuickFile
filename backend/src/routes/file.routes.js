@@ -47,7 +47,7 @@ router.route("/allfile").get(verifyJWT,getAllFiles)
 /**
  * @swagger
  * /api/v1/files/download/{token}:
- *   patch:
+ *   get:
  *     summary: Download a file using a share token
  *     tags:
  *       - Files
@@ -61,7 +61,7 @@ router.route("/allfile").get(verifyJWT,getAllFiles)
  *       200:
  *         description: File download started
  */
-router.route("/download/:token").patch(downloadViaToken)
+router.route("/download/:token").get(downloadViaToken)
 
 /**
  * @swagger

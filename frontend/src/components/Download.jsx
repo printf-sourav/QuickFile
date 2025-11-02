@@ -6,6 +6,7 @@ const Download = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('loading');
+  const [errorMessage, setErrorMessage] = useState('');
   const [hasDownloaded, setHasDownloaded] = React.useState(false);
 
   useEffect(() => {
@@ -17,10 +18,17 @@ const Download = () => {
         setHasDownloaded(true);
         
         // Get file metadata from backend
-        const response = await api.patch(`/files/download/${token}`);
+        console.log('API Base URL:', import.meta.env.VITE_API_URL);
+        console.log('Calling:', `/files/download/${token}`);
+        
+        const response = await api.get(`/files/download/${token}`);
+        
+        console.log('Response received:', response.data);
         
         if (response.data.success && response.data.data.url) {
           const { url, filename } = response.data.data;
+          
+          console.log('Downloading from:', url);
           
           // Download directly from Cloudinary URL
           const link = document.createElement('a');
@@ -42,11 +50,25 @@ const Download = () => {
           throw new Error('Invalid response from server');
         }
       } catch (err) {
-        console.error('Download error:', err);
+        console.error('Download error details:', {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status
+        });
+        
+        // Set a more descriptive error message
+        if (err.response?.status === 404) {
+          setErrorMessage('Download link not found or expired');
+        } else if (err.message.includes('Network Error')) {
+          setErrorMessage('Cannot connect to server. Check API URL configuration.');
+        } else {
+          setErrorMessage(err.response?.data?.message || 'Download failed. Please try again.');
+        }
+        
         setStatus('error');
         setTimeout(() => {
           navigate('/');
-        }, 3000);
+        }, 5000);
       }
     };
 
@@ -77,7 +99,8 @@ const Download = () => {
           <>
             <div className="landing-logo">❌</div>
             <h2 className="text-white">Download failed</h2>
-            <p className="text-white">Invalid or expired link. Redirecting...</p>
+            <p className="text-white">{errorMessage}</p>
+            <p className="text-white mt-2"><small>Redirecting in 5 seconds...</small></p>
           </>
         )}
       </div>
