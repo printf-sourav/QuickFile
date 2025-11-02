@@ -183,15 +183,21 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found");
         }
 
-        // Return direct Cloudinary URL for client-side download
-        // This works better with CORS and frontend deployments
-        return res.status(200).json(
-            new apiResponse(200, {
-                url: file.url,
-                filename: file.filename,
-                size: file.size
-            }, "File ready for download")
-        );
+        // Stream file from Cloudinary with proper download headers
+        const fileResponse = await axios.get(file.url, {
+            responseType: 'stream'
+        });
+
+        // Set headers to force download with original filename
+        res.setHeader('Content-Type', fileResponse.headers['content-type'] || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+        
+        if (fileResponse.headers['content-length']) {
+            res.setHeader('Content-Length', fileResponse.headers['content-length']);
+        }
+        
+        // Pipe the file stream to response
+        fileResponse.data.pipe(res);
     } catch (error) {
         if(error.name === 'JsonWebTokenError') {
             throw new apiError(400, "Invalid download token");
@@ -204,4 +210,38 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
 })
 
-export {fileUpload,getFileById,getAllFiles,deleteFile,generateShareLink,downloadViaToken}
+const downloadFileById = asyncHandler(async(req,res)=>{
+    const {FileId} = req.params;
+
+    if(!FileId){
+        throw new apiError(400, "File ID is required");
+    }
+
+    const file = await File.findOne({ _id: FileId, owner: req.user._id });
+
+    if(!file){
+        throw new apiError(404, "File not found or you don't have permission");
+    }
+
+    // Increment download count
+    file.downloadCount += 1;
+    await file.save();
+
+    // Stream file from Cloudinary with proper download headers
+    const fileResponse = await axios.get(file.url, {
+        responseType: 'stream'
+    });
+
+    // Set headers to force download with original filename
+    res.setHeader('Content-Type', fileResponse.headers['content-type'] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`);
+    
+    if (fileResponse.headers['content-length']) {
+        res.setHeader('Content-Length', fileResponse.headers['content-length']);
+    }
+    
+    // Pipe the file stream to response
+    fileResponse.data.pipe(res);
+})
+
+export {fileUpload,getFileById,getAllFiles,deleteFile,generateShareLink,downloadViaToken,downloadFileById}

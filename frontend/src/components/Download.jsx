@@ -17,38 +17,49 @@ const Download = () => {
       try {
         setHasDownloaded(true);
         
-        // Get file metadata from backend
         console.log('API Base URL:', import.meta.env.VITE_API_URL);
-        console.log('Calling:', `/files/download/${token}`);
+        console.log('Downloading via token:', token);
         
-        const response = await api.get(`/files/download/${token}`);
+        // Download file directly from backend (it will stream with proper headers)
+        const response = await api.get(`/files/download/${token}`, {
+          responseType: 'blob'
+        });
         
-        console.log('Response received:', response.data);
+        // Get filename from content-disposition header
+        const contentDisposition = response.headers['content-disposition'];
+        let filename = 'download';
         
-        if (response.data.success && response.data.data.url) {
-          const { url, filename } = response.data.data;
-          
-          console.log('Downloading from:', url);
-          console.log('Filename:', filename);
-          
-          // Add Cloudinary download flag with filename to force download with correct name
-          const encodedFilename = encodeURIComponent(filename);
-          const downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFilename}/`);
-          
-          console.log('Download URL:', downloadUrl);
-          
-          // Trigger download
-          window.location.href = downloadUrl;
-          
-          setStatus('success');
-          
-          // Redirect to landing page after 3 seconds
-          setTimeout(() => {
-            navigate('/');
-          }, 3000);
-        } else {
-          throw new Error('Invalid response from server');
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
+          }
         }
+        
+        console.log('Downloaded filename:', filename);
+        
+        // Create blob URL and trigger download
+        const blob = new Blob([response.data]);
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+        
+        setStatus('success');
+        
+        // Redirect to landing page after 3 seconds
+        setTimeout(() => {
+          navigate('/');
+        }, 3000);
       } catch (err) {
         console.error('Download error details:', {
           message: err.message,

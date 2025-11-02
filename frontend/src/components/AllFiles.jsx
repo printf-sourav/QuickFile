@@ -50,14 +50,32 @@ const AllFiles = () => {
     }
   };
 
-  const handleDownload = (url, filename) => {
-    // Add Cloudinary download flag with filename to force download with correct name
-    // fl_attachment:filename tells Cloudinary to use the specified filename
-    const encodedFilename = encodeURIComponent(filename);
-    const downloadUrl = url.replace('/upload/', `/upload/fl_attachment:${encodedFilename}/`);
-    
-    // Trigger download
-    window.location.href = downloadUrl;
+  const handleDownload = async (fileId, filename) => {
+    try {
+      // Download file from backend with proper headers
+      const response = await api.get(`/files/direct-download/${fileId}`, {
+        responseType: 'blob'
+      });
+      
+      // Create blob URL and trigger download
+      const blob = new Blob([response.data]);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download file');
+    }
   };
 
   const formatFileSize = (bytes) => {
@@ -110,7 +128,7 @@ const AllFiles = () => {
                       className="btn btn-primary btn-sm"
                       onClick={() => {
                         console.log('Download button clicked');
-                        handleDownload(file.url, file.filename);
+                        handleDownload(file._id, file.filename);
                       }}
                     >
                       Download

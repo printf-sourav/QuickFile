@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { fileUpload, getFileById ,getAllFiles,deleteFile,generateShareLink,downloadViaToken} from "../controllers/file.controller.js";
+import { fileUpload, getFileById ,getAllFiles,deleteFile,generateShareLink,downloadViaToken,downloadFileById} from "../controllers/file.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import {verifyJWT} from "../middleware/auth.middleware.js"
 
@@ -62,6 +62,25 @@ router.route("/allfile").get(verifyJWT,getAllFiles)
  *         description: File download started
  */
 router.route("/download/:token").get(downloadViaToken)
+
+/**
+ * @swagger
+ * /api/v1/files/direct-download/{FileId}:
+ *   get:
+ *     summary: Download a file directly by ID (authenticated)
+ *     tags:
+ *       - Files
+ *     parameters:
+ *       - in: path
+ *         name: FileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: File download started
+ */
+router.route("/direct-download/:FileId").get(verifyJWT, downloadFileById)
 
 /**
  * @swagger
