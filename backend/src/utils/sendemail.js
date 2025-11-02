@@ -5,12 +5,15 @@ import { apiError } from "./apiError.js"
 const sendMail = async (to, subject, html) => {
     try {
         const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        secure: true, // true for port 465
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+        }
+    });
+
 
         const mailOptions = {
             from: `"QuickFile" <${process.env.SMTP_USER}>`,
