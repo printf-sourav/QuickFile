@@ -21,7 +21,8 @@ const fileSchema = new Schema({
     downloadCount:{
         type:Number,
         default: 0
-    }
+    },
+    expiresAt: { type: Date, default: () => new Date(Date.now() + 24*60*60*1000) }
 },{timestamps:true})
-
+fileSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 export const File = mongoose.model("File",fileSchema);
