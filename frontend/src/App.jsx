@@ -12,7 +12,6 @@ import Profile from './components/Profile';
 import AllFiles from './components/AllFiles';
 import Upload from './components/Upload';
 import Download from './components/Download';
-import VerifyEmail from './components/VerifyEmail';
 
 // Navbar Component
 const Navbar = () => {
@@ -168,9 +167,6 @@ const AppContent = () => {
         
         {/* Download Route (public but special) */}
         <Route path="/download/:token" element={<Download />} />
-        
-        {/* Email Verification Route (public) */}
-        <Route path="/verify-email/:token" element={<VerifyEmail />} />
 
         {/* Protected Routes */}
         <Route

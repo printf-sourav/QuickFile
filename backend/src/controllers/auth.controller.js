@@ -5,7 +5,6 @@ import {apiError} from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.js" 
 import jwt from "jsonwebtoken"
-import { sendMail } from "../utils/sendemail.js";
 
 const generateNewAccessAndRefreshToken = async(userId)=>{
     const user = await User.findById(userId);
@@ -61,38 +60,7 @@ const registerUser = asyncHandler(async(req,res)=>{
         email,
         password,
         username: username.toLowerCase()
-
     })
-
-    const verifyToken = jwt.sign(
-    { _id: user._id },
-    process.env.EMAIL_VERIFY_SECRET,
-    { expiresIn: "15m" }
-    );
-
-    user.emailVerificationToken = verifyToken;
-    user.emailVerificationExpires = Date.now() + 15 * 60 * 1000;
-
-    await user.save({validateBeforeSave:false})
-
-    const verifyLink = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
-
-    // Send verification email (don't block registration if email fails)
-    try {
-        await sendMail(
-            email,
-            "Verify your QuickFile Account",
-            `<h2>Welcome to QuickFile!</h2>
-             <p>Click below to verify your email:</p>
-             <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-             <p>Or copy this link: ${verifyLink}</p>
-             <p>This link expires in 15 minutes.</p>`
-        );
-        console.log('Verification email sent to:', email);
-    } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-        // Continue with registration even if email fails
-    }
 
     const UserCheck = await User.findById(user._id).select(
         "-password -refreshToken"
@@ -102,107 +70,9 @@ const registerUser = asyncHandler(async(req,res)=>{
         throw new apiError(500, "Something went wrong while registering the user")
     }
     return res.status(201).json(
-        new apiResponse(200, UserCheck, "User register successfully please check mail to verify")
+        new apiResponse(200, UserCheck, "User registered successfully")
     )
 })
-
-const verifyEmail = asyncHandler(async(req,res)=>{
-    const {token} = req.params;
-
-    try {
-        const decoded = jwt.verify(token, process.env.EMAIL_VERIFY_SECRET);
-        console.log('Decoded token:', decoded);
-
-        // Find user by ID from decoded token
-        const user = await User.findById(decoded._id);
-
-        if(!user){
-            throw new apiError(404, "Invalid token - user not found")
-        }
-
-        if(user.emailVerified === true){
-            return res.status(200).json(
-                new apiResponse(200, null, "Email already verified")
-            );
-        }
-
-        // Verify the token matches and hasn't expired
-        if(user.emailVerificationToken !== token){
-            throw new apiError(400, "Invalid verification token")
-        }
-
-        if(user.emailVerificationExpires < Date.now()){
-            throw new apiError(400, "Verification token has expired")
-        }
-
-        // Mark email as verified
-        user.emailVerified = true;
-        user.emailVerificationToken = undefined;
-        user.emailVerificationExpires = undefined;
-        await user.save({validateBeforeSave: false});
-
-        return res.status(200).json(
-            new apiResponse(200, null, "Email verified successfully")
-        );
-    } catch (error) {
-        if(error.name === 'JsonWebTokenError'){
-            throw new apiError(400, "Invalid verification token")
-        }
-        if(error.name === 'TokenExpiredError'){
-            throw new apiError(400, "Verification token has expired")
-        }
-        throw error;
-    }
-})
-const resendVerificationEmail = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    throw new apiError(400, "Email address is required");
-  }
-
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailRegex.test(email)){
-    throw new apiError(400, "Please provide a valid email address");
-  }
-
-  const user = await User.findOne({ email });
-  if (!user) {
-    throw new apiError(404, "No account found with this email address");
-  }
-
-  if (user.emailVerified) {
-    throw new apiError(400, "This email is already verified. You can login now");
-  }
-
-
-  const verifyToken = jwt.sign(
-    { _id: user._id },
-    process.env.EMAIL_VERIFY_SECRET,
-    { expiresIn: "15m" }
-  );
-
-  user.emailVerificationToken = verifyToken;
-  user.emailVerificationExpires = Date.now() + 15 * 60 * 1000;
-  await user.save();
-
-  const verifyLink = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
-
-  await sendMail(
-    email,
-    "Resend: Verify your QuickFile Account",
-    `<h2>Hello again from QuickFile 👋</h2>
-     <p>Click below to verify your email:</p>
-     <a href="${verifyLink}" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Verify Email</a>
-     <p>Or copy this link: ${verifyLink}</p>
-     <p>This link will expire in 15 minutes.</p>`
-  );
-
-  res.status(200).json(
-    new apiResponse(200, {}, "Verification email resent successfully!")
-  );
-});
 
 const loginUser = asyncHandler(async(req,res)=>{
     const {username,password} = req.body??{};
@@ -224,10 +94,6 @@ const loginUser = asyncHandler(async(req,res)=>{
         throw new apiError(401,"Incorrect password. Please try again");
     }
 
-    // Check email verification
-    if(!user.emailVerified){
-        throw new apiError(400,"Email not verified. Please check your email for the verification link")
-    }
     const {accessToken,refreshToken} = await generateNewAccessAndRefreshToken(user._id)
 
     const loggedInUser = await User.findById(user._id).select(
@@ -314,4 +180,4 @@ const refreshAccessToken = asyncHandler(async(req,res)=>{
     }
 })
 
-export {registerUser,loginUser,logoutUser,refreshAccessToken,verifyEmail,resendVerificationEmail}
+export {registerUser,loginUser,logoutUser,refreshAccessToken}
