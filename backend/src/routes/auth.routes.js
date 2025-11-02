@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { loginUser, registerUser ,logoutUser,refreshAccessToken} from "../controllers/auth.controller.js";
+import { loginUser, registerUser ,logoutUser,refreshAccessToken,verifyEmail,resendVerificationEmail} from "../controllers/auth.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import {verifyJWT} from "../middleware/auth.middleware.js"
 
@@ -34,6 +34,8 @@ const router=Router();
  *         description: User registered
  */
 router.route("/register").post(upload.single("avatar"),registerUser);
+router.route("/verify/:token").patch(verifyEmail)
+router.route("/resend-verification").post(resendVerificationEmail)
 
 /**
  * @swagger

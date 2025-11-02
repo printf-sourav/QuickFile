@@ -19,8 +19,8 @@ app.use(cookieParser())
 
 import userRouter from "./routes/auth.routes.js";
 import fileRouter from "./routes/file.routes.js"
-
 import statsRouter from "./routes/stats.routes.js"
+import { errorHandler } from "./middleware/error.middleware.js";
 
 import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./swagger.js";
@@ -38,4 +38,8 @@ app.get("/swagger.json", (req, res) => {
   res.setHeader("Content-Type", "application/json");
   res.send(swaggerSpec);
 });
+
+// Global error handling middleware (must be after all routes)
+app.use(errorHandler);
+
 export {app};

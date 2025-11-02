@@ -9,42 +9,36 @@ import mongoose  from "mongoose";
 import { response } from "express";
 import axios from "axios"
 
+
 const fileUpload = asyncHandler(async (req,res,next)=>{
     const files = req.files;
-    console.log('Upload request - User:', req.user?._id);
-    console.log('Files received:', files?.length);
-    
     if(!files || files.length == 0){
         throw new apiError(400,"Files are missing");
     }
     
-    if(!req.user || !req.user._id){
-        throw new apiError(401,"User not authenticated");
-    }
 
     const uploadedFiles = [];
     for(const file of files){
-        console.log('Uploading file:', file.originalname);
         const result = await uploadOnCloudinary(file.path)
         if(!result){
-            throw new apiError(500,"Something went wrong while uploading file")
+            throw new apiError(500,"SOmething went wrong while uploading file")
         }
 
         const newFile = await File.create({
-            filename: file.originalname,
-            url: result.url,
-            size: file.size,
-            owner: req.user._id,
-            downloadCount: 0
+            filename:file.originalname,
+            url:result.url,
+            size:file.size,
+            owner: req.user?._id
         })
-        console.log('File saved to DB:', newFile._id);
         uploadedFiles.push(newFile);
     }
 
     return res.status(200)
     .json(
-        new apiResponse(200, uploadedFiles, "Files uploaded successfully")
+        new apiResponse(200,uploadedFiles,"Files uploaded successfully")
     )
+
+    
 })
 
 const getFileById = asyncHandler(async(req,res,next)=>{
