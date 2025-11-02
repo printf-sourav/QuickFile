@@ -33,6 +33,57 @@ router.route("/upload").post(upload.array("files",5),verifyJWT,fileUpload);
 
 /**
  * @swagger
+ * /api/v1/files/allfile:
+ *   get:
+ *     summary: Get all files uploaded by logged in user
+ *     tags:
+ *       - Files
+ *     responses:
+ *       200:
+ *         description: Files list
+ */
+router.route("/allfile").get(verifyJWT,getAllFiles)
+
+/**
+ * @swagger
+ * /api/v1/files/download/{token}:
+ *   patch:
+ *     summary: Download a file using a share token
+ *     tags:
+ *       - Files
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: File download started
+ */
+router.route("/download/:token").patch(downloadViaToken)
+
+/**
+ * @swagger
+ * /api/v1/files/{id}/share:
+ *   post:
+ *     summary: Generate a shareable short link for a file
+ *     tags:
+ *       - Files
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Share link created
+ */
+router.route("/:id/share").post(verifyJWT,generateShareLink)
+
+/**
+ * @swagger
  * /api/v1/files/{FileId}:
  *   patch:
  *     summary: Increment download count and get file
@@ -62,57 +113,6 @@ router.route("/upload").post(upload.array("files",5),verifyJWT,fileUpload);
  *         description: File deleted
  */
 router.route("/:FileId").patch(verifyJWT,getFileById).delete(verifyJWT,deleteFile)
-
-/**
- * @swagger
- * /api/v1/files/allfile:
- *   get:
- *     summary: Get all files uploaded by logged in user
- *     tags:
- *       - Files
- *     responses:
- *       200:
- *         description: Files list
- */
-router.route("/allfile").get(verifyJWT,getAllFiles)
-
-/**
- * @swagger
- * /api/v1/files/{id}/share:
- *   post:
- *     summary: Generate a shareable short link for a file
- *     tags:
- *       - Files
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Share link created
- */
-router.route("/:id/share").post(verifyJWT,generateShareLink)
-
-/**
- * @swagger
- * /api/v1/files/download/{token}:
- *   patch:
- *     summary: Download a file using a share token
- *     tags:
- *       - Files
- *     parameters:
- *       - in: path
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: File download started
- */
-router.route("/download/:token").patch(downloadViaToken)
 
 export default router
 
