@@ -13,7 +13,9 @@ const uploadOnCloudinary = async (localFilePath, folder="quickfile/uploads") => 
 
         const response = await cloudinary.uploader.upload(localFilePath, {
             folder,
-            resource_type: "auto"
+            resource_type: "auto",
+            type: "upload", // Public upload type
+            access_mode: "public" // Make file publicly accessible
         })
         
         fs.unlinkSync(localFilePath)
@@ -24,4 +26,19 @@ const uploadOnCloudinary = async (localFilePath, folder="quickfile/uploads") => 
     }
 }
 
-export { uploadOnCloudinary }
+// Generate a signed URL for secure download (if needed)
+const generateSignedUrl = (publicId, resourceType = "raw") => {
+    try {
+        return cloudinary.url(publicId, {
+            resource_type: resourceType,
+            type: "upload",
+            sign_url: true,
+            secure: true
+        });
+    } catch (error) {
+        console.error('Error generating signed URL:', error);
+        return null;
+    }
+}
+
+export { uploadOnCloudinary, generateSignedUrl }

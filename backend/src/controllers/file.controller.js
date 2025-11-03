@@ -185,14 +185,26 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
         console.log('Starting download for file:', file.filename, 'URL:', file.url);
 
-        // Stream file from Cloudinary with proper download headers
-        const fileResponse = await axios.get(file.url, {
-            responseType: 'stream',
-            timeout: 120000, // 2 minutes timeout for large files
-            maxRedirects: 5
-        });
+        let fileResponse;
+        try {
+            // Try to stream file from Cloudinary
+            fileResponse = await axios.get(file.url, {
+                responseType: 'stream',
+                timeout: 120000, // 2 minutes timeout for large files
+                maxRedirects: 5,
+                validateStatus: (status) => status < 500 // Don't throw on 4xx errors
+            });
 
-        console.log('Cloudinary response received, content-length:', fileResponse.headers['content-length']);
+            // If we get 401, the URL might be authenticated/expired
+            if (fileResponse.status === 401) {
+                throw new Error('Cloudinary URL is not publicly accessible or expired');
+            }
+
+            console.log('Cloudinary response received, status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
+        } catch (axiosError) {
+            console.error('Cloudinary access error:', axiosError.message);
+            throw new apiError(500, 'File is not accessible from storage. Please re-upload the file.');
+        }
 
         // Force download by using application/octet-stream for all file types
         // This prevents browser from trying to display PDFs, images, videos inline
