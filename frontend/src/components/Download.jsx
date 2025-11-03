@@ -22,7 +22,12 @@ const Download = () => {
         
         // Download file directly from backend (it will stream with proper headers)
         const response = await api.get(`/files/download/${token}`, {
-          responseType: 'blob'
+          responseType: 'blob',
+          timeout: 120000, // 2 minutes timeout for large files
+          onDownloadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log('Download progress:', percentCompleted + '%');
+          }
         });
         
         // Get filename from content-disposition header
@@ -39,9 +44,15 @@ const Download = () => {
         
         console.log('Content-Disposition:', contentDisposition);
         console.log('Downloaded filename:', filename);
+        console.log('File size:', response.data.size, 'bytes');
+        
+        // Verify we actually received data
+        if (!response.data || response.data.size === 0) {
+          throw new Error('Received empty file from server');
+        }
         
         // Create blob URL and trigger download
-        const blob = new Blob([response.data]);
+        const blob = new Blob([response.data], { type: 'application/octet-stream' });
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
@@ -49,6 +60,8 @@ const Download = () => {
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
+        
+        console.log('Download triggered successfully');
         
         // Cleanup
         setTimeout(() => {

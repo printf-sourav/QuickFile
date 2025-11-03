@@ -185,7 +185,8 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
         // Stream file from Cloudinary with proper download headers
         const fileResponse = await axios.get(file.url, {
-            responseType: 'stream'
+            responseType: 'stream',
+            timeout: 120000 // 2 minutes timeout for large files
         });
 
         // Force download by using application/octet-stream for all file types
@@ -198,8 +199,17 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             res.setHeader('Content-Length', fileResponse.headers['content-length']);
         }
         
-        // Pipe the file stream to response
-        fileResponse.data.pipe(res);
+        // Pipe the file stream to response with error handling
+        fileResponse.data.on('error', (err) => {
+            console.error('Stream error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, message: 'Error streaming file' });
+            }
+        });
+        
+        fileResponse.data.pipe(res).on('finish', () => {
+            console.log('File download completed:', file.filename);
+        });
     } catch (error) {
         if(error.name === 'JsonWebTokenError') {
             throw new apiError(400, "Invalid download token");
@@ -231,7 +241,8 @@ const downloadFileById = asyncHandler(async(req,res)=>{
 
     // Stream file from Cloudinary with proper download headers
     const fileResponse = await axios.get(file.url, {
-        responseType: 'stream'
+        responseType: 'stream',
+        timeout: 120000 // 2 minutes timeout for large files
     });
 
     // Force download by using application/octet-stream for all file types
@@ -244,8 +255,17 @@ const downloadFileById = asyncHandler(async(req,res)=>{
         res.setHeader('Content-Length', fileResponse.headers['content-length']);
     }
     
-    // Pipe the file stream to response
-    fileResponse.data.pipe(res);
+    // Pipe the file stream to response with error handling
+    fileResponse.data.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: 'Error streaming file' });
+        }
+    });
+    
+    fileResponse.data.pipe(res).on('finish', () => {
+        console.log('File download completed:', file.filename);
+    });
 })
 
 export {fileUpload,getFileById,getAllFiles,deleteFile,generateShareLink,downloadViaToken,downloadFileById}
