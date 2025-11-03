@@ -199,20 +199,29 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             if (fileResponse.status === 401) {
                 console.log('Got 401, generating signed URL for private file');
                 
-                // Extract public_id from Cloudinary URL
-                // URL format: https://res.cloudinary.com/cloud_name/resource_type/upload/v123/folder/file.ext
+                // Extract resource_type and public_id from Cloudinary URL
+                // Format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
                 const urlParts = file.url.split('/upload/');
                 if (urlParts.length < 2) {
                     throw new Error('Invalid Cloudinary URL format');
                 }
                 
-                // Get the public_id (everything after /upload/ without extension for some resources)
-                let publicId = urlParts[1].split('/').slice(1).join('/'); // Remove version number
+                // Extract resource type (image, video, raw, etc.)
+                const beforeUpload = urlParts[0];
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\/$/);
+                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
+                
+                // Get the public_id (everything after /upload/ without version number)
+                let publicId = urlParts[1].split('/').slice(1).join('/');
+                // Remove file extension for resource_type detection
+                publicId = publicId.replace(/\.[^/.]+$/, '');
+                
+                console.log('Detected resource type:', resourceType, 'Public ID:', publicId);
                 
                 // Generate signed URL using imported function
-                const signedUrl = generateSignedUrl(publicId);
+                const signedUrl = generateSignedUrl(publicId, resourceType);
                 
-                console.log('Trying signed URL...');
+                console.log('Trying signed URL:', signedUrl);
                 fileResponse = await axios.get(signedUrl, {
                     responseType: 'stream',
                     timeout: 120000,
@@ -298,19 +307,29 @@ const downloadFileById = asyncHandler(async(req,res)=>{
             if (fileResponse.status === 401) {
                 console.log('Got 401, generating signed URL for private file');
                 
-                // Extract public_id from Cloudinary URL
+                // Extract resource_type and public_id from Cloudinary URL
+                // Format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
                 const urlParts = file.url.split('/upload/');
                 if (urlParts.length < 2) {
                     throw new Error('Invalid Cloudinary URL format');
                 }
                 
+                // Extract resource type (image, video, raw, etc.)
+                const beforeUpload = urlParts[0];
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\/$/);
+                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
+                
                 // Get the public_id (everything after /upload/ without version number)
                 let publicId = urlParts[1].split('/').slice(1).join('/');
+                // Remove file extension for resource_type detection
+                publicId = publicId.replace(/\.[^/.]+$/, '');
+                
+                console.log('Detected resource type:', resourceType, 'Public ID:', publicId);
                 
                 // Generate signed URL using imported function
-                const signedUrl = generateSignedUrl(publicId);
+                const signedUrl = generateSignedUrl(publicId, resourceType);
                 
-                console.log('Trying signed URL...');
+                console.log('Trying signed URL:', signedUrl);
                 fileResponse = await axios.get(signedUrl, {
                     responseType: 'stream',
                     timeout: 120000,
