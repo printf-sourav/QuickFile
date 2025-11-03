@@ -2,7 +2,7 @@ import { File } from "../models/file.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {apiError} from "../utils/apiError.js"
 import { apiResponse } from "../utils/apiResponse.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, generateSignedUrl } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken"
 import mongoose  from "mongoose";
 import axios from "axios"
@@ -209,8 +209,7 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
                 // Get the public_id (everything after /upload/ without extension for some resources)
                 let publicId = urlParts[1].split('/').slice(1).join('/'); // Remove version number
                 
-                // Import generateSignedUrl from cloudinary utils
-                const { generateSignedUrl } = require('../utils/cloudinary.js');
+                // Generate signed URL using imported function
                 const signedUrl = generateSignedUrl(publicId);
                 
                 console.log('Trying signed URL...');
@@ -285,14 +284,45 @@ const downloadFileById = asyncHandler(async(req,res)=>{
         file.downloadCount += 1;
         await file.save();
 
-        // Stream file from Cloudinary with proper download headers
-        const fileResponse = await axios.get(file.url, {
-            responseType: 'stream',
-            timeout: 120000, // 2 minutes timeout for large files
-            maxRedirects: 5
-        });
+        let fileResponse;
+        try {
+            // First try the direct URL (works for public files)
+            fileResponse = await axios.get(file.url, {
+                responseType: 'stream',
+                timeout: 120000,
+                maxRedirects: 5,
+                validateStatus: (status) => status < 500
+            });
 
-        console.log('Cloudinary response received, content-length:', fileResponse.headers['content-length']);
+            // If 401, try with signed URL
+            if (fileResponse.status === 401) {
+                console.log('Got 401, generating signed URL for private file');
+                
+                // Extract public_id from Cloudinary URL
+                const urlParts = file.url.split('/upload/');
+                if (urlParts.length < 2) {
+                    throw new Error('Invalid Cloudinary URL format');
+                }
+                
+                // Get the public_id (everything after /upload/ without version number)
+                let publicId = urlParts[1].split('/').slice(1).join('/');
+                
+                // Generate signed URL using imported function
+                const signedUrl = generateSignedUrl(publicId);
+                
+                console.log('Trying signed URL...');
+                fileResponse = await axios.get(signedUrl, {
+                    responseType: 'stream',
+                    timeout: 120000,
+                    maxRedirects: 5
+                });
+            }
+
+            console.log('Cloudinary response received, status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
+        } catch (axiosError) {
+            console.error('Cloudinary access error:', axiosError.message);
+            throw new apiError(500, 'Unable to download file. The file may no longer be accessible from cloud storage. Try re-uploading the file.');
+        }
 
         // Force download by using application/octet-stream for all file types
         // This prevents browser from trying to display PDFs, images, videos inline
