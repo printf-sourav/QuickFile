@@ -198,12 +198,51 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
             console.log('[downloadViaToken] Direct URL response status:', fileResponse.status);
 
-            // If 401, the file was uploaded before we added public access
-            // User needs to re-upload this file
+            // If 401, generate authenticated signed URL
             if (fileResponse.status === 401) {
-                console.log('[downloadViaToken] Got 401 - File is private');
+                console.log('[downloadViaToken] Got 401 - Generating authenticated URL');
                 console.log('[downloadViaToken] Original URL:', file.url);
-                throw new Error('This file was uploaded with restricted access. Please ask the file owner to re-upload it to enable downloads.');
+                
+                // Extract public_id and resource_type from URL
+                const urlParts = file.url.split('/upload/');
+                if (urlParts.length < 2) {
+                    throw new Error('Invalid Cloudinary URL format');
+                }
+                
+                // Get resource type from URL path
+                const resourceTypeMatch = urlParts[0].match(/\/(image|video|raw)\//);
+                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
+                
+                // Get public_id - everything after version number, without extension
+                const afterUpload = urlParts[1];
+                const pathParts = afterUpload.split('/');
+                // Remove version (v12345...) and reconstruct path
+                const publicIdParts = pathParts.slice(1); // Skip version
+                const publicId = publicIdParts.join('/').replace(/\.[^/.]+$/, ''); // Remove extension
+                
+                console.log('[downloadViaToken] Extracted - resourceType:', resourceType, 'publicId:', publicId);
+                
+                // Generate authenticated URL
+                const authUrl = generateSignedUrl(publicId, resourceType);
+                
+                if (!authUrl) {
+                    throw new Error('Failed to generate authenticated URL');
+                }
+                
+                console.log('[downloadViaToken] Trying authenticated URL');
+                fileResponse = await axios.get(authUrl, {
+                    responseType: 'stream',
+                    timeout: 120000,
+                    maxRedirects: 5,
+                    validateStatus: (status) => status < 500
+                });
+                
+                console.log('[downloadViaToken] Authenticated URL response status:', fileResponse.status);
+                
+                // If still 401, it's a permanent issue
+                if (fileResponse.status === 401) {
+                    throw new Error('Unable to access file - Cloudinary authentication failed. Please check Cloudinary account settings.');
+                }
             }
             
             // Check for other non-200 status codes
@@ -291,12 +330,51 @@ const downloadFileById = asyncHandler(async(req,res)=>{
 
             console.log('[downloadFileById] Direct URL response status:', fileResponse.status);
 
-            // If 401, the file was uploaded before we added public access
-            // User needs to re-upload this file
+            // If 401, generate authenticated signed URL
             if (fileResponse.status === 401) {
-                console.log('[downloadFileById] Got 401 - File is private');
+                console.log('[downloadFileById] Got 401 - Generating authenticated URL');
                 console.log('[downloadFileById] Original URL:', file.url);
-                throw new Error('This file was uploaded with restricted access. Please delete and re-upload it to enable downloads.');
+                
+                // Extract public_id and resource_type from URL
+                const urlParts = file.url.split('/upload/');
+                if (urlParts.length < 2) {
+                    throw new Error('Invalid Cloudinary URL format');
+                }
+                
+                // Get resource type from URL path
+                const resourceTypeMatch = urlParts[0].match(/\/(image|video|raw)\//);
+                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
+                
+                // Get public_id - everything after version number, without extension
+                const afterUpload = urlParts[1];
+                const pathParts = afterUpload.split('/');
+                // Remove version (v12345...) and reconstruct path
+                const publicIdParts = pathParts.slice(1); // Skip version
+                const publicId = publicIdParts.join('/').replace(/\.[^/.]+$/, ''); // Remove extension
+                
+                console.log('[downloadFileById] Extracted - resourceType:', resourceType, 'publicId:', publicId);
+                
+                // Generate authenticated URL
+                const authUrl = generateSignedUrl(publicId, resourceType);
+                
+                if (!authUrl) {
+                    throw new Error('Failed to generate authenticated URL');
+                }
+                
+                console.log('[downloadFileById] Trying authenticated URL');
+                fileResponse = await axios.get(authUrl, {
+                    responseType: 'stream',
+                    timeout: 120000,
+                    maxRedirects: 5,
+                    validateStatus: (status) => status < 500
+                });
+                
+                console.log('[downloadFileById] Authenticated URL response status:', fileResponse.status);
+                
+                // If still 401, it's a permanent issue
+                if (fileResponse.status === 401) {
+                    throw new Error('Unable to access file - Cloudinary authentication failed. Please check Cloudinary account settings.');
+                }
             }
             
             // Check for other non-200 status codes
