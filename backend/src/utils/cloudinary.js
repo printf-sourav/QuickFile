@@ -29,14 +29,23 @@ const uploadOnCloudinary = async (localFilePath, folder="quickfile/uploads") => 
 // Generate a signed URL for secure download (if needed)
 const generateSignedUrl = (publicId, resourceType = "raw") => {
     try {
-        return cloudinary.url(publicId, {
+        // Generate signed URL with authentication
+        // For private files, we need to use the full public_id with version
+        const url = cloudinary.url(publicId, {
             resource_type: resourceType,
             type: "upload",
             sign_url: true,
-            secure: true
+            secure: true,
+            // Add authentication parameters
+            api_key: process.env.CLOUDINARY_API_KEY,
         });
+        
+        console.log('[generateSignedUrl] Generated URL for publicId:', publicId, 'resourceType:', resourceType);
+        console.log('[generateSignedUrl] URL:', url);
+        
+        return url;
     } catch (error) {
-        console.error('Error generating signed URL:', error);
+        console.error('[generateSignedUrl] Error generating signed URL:', error);
         return null;
     }
 }
