@@ -183,11 +183,12 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found");
         }
 
-        console.log('Starting download for file:', file.filename, 'URL:', file.url);
+        console.log('[downloadViaToken] Starting download for file:', file.filename, 'URL:', file.url);
 
         let fileResponse;
         try {
             // First try the direct URL (works for public files)
+            console.log('[downloadViaToken] Attempting direct URL download...');
             fileResponse = await axios.get(file.url, {
                 responseType: 'stream',
                 timeout: 120000,
@@ -195,9 +196,12 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
                 validateStatus: (status) => status < 500
             });
 
+            console.log('[downloadViaToken] Direct URL response status:', fileResponse.status);
+
             // If 401, try with signed URL
             if (fileResponse.status === 401) {
-                console.log('Got 401, generating signed URL for private file');
+                console.log('[downloadViaToken] Got 401, generating signed URL for private file');
+                console.log('[downloadViaToken] Original URL:', file.url);
                 
                 // Extract resource_type and public_id from Cloudinary URL
                 // Format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
@@ -208,7 +212,8 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
                 
                 // Extract resource type (image, video, raw, etc.)
                 const beforeUpload = urlParts[0];
-                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\/$/);
+                console.log('[downloadViaToken] URL before upload:', beforeUpload);
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\//);
                 const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
                 
                 // Get the public_id (everything after /upload/ without version number)
@@ -216,23 +221,33 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
                 // Remove file extension for resource_type detection
                 publicId = publicId.replace(/\.[^/.]+$/, '');
                 
-                console.log('Detected resource type:', resourceType, 'Public ID:', publicId);
+                console.log('[downloadViaToken] Detected resource type:', resourceType, 'Public ID:', publicId);
                 
                 // Generate signed URL using imported function
                 const signedUrl = generateSignedUrl(publicId, resourceType);
                 
-                console.log('Trying signed URL:', signedUrl);
+                if (!signedUrl) {
+                    throw new Error('Failed to generate signed URL - check Cloudinary credentials');
+                }
+                
+                console.log('[downloadViaToken] Trying signed URL:', signedUrl);
                 fileResponse = await axios.get(signedUrl, {
                     responseType: 'stream',
                     timeout: 120000,
-                    maxRedirects: 5
+                    maxRedirects: 5,
+                    validateStatus: (status) => status < 500
                 });
+                
+                console.log('[downloadViaToken] Signed URL response status:', fileResponse.status);
             }
 
-            console.log('Cloudinary response received, status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
+            console.log('[downloadViaToken] Final response status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
         } catch (axiosError) {
-            console.error('Cloudinary access error:', axiosError.message);
-            throw new apiError(500, 'Unable to download file. The file may no longer be accessible from cloud storage. Try re-uploading the file.');
+            console.error('[downloadViaToken] Cloudinary access error:', axiosError.message);
+            console.error('[downloadViaToken] Error response status:', axiosError.response?.status);
+            console.error('[downloadViaToken] Error response statusText:', axiosError.response?.statusText);
+            console.error('[downloadViaToken] Original URL:', file.url);
+            throw new apiError(500, `Unable to download file: ${axiosError.message}. HTTP Status: ${axiosError.response?.status || 'N/A'}`);
         }
 
         // Force download by using application/octet-stream for all file types
@@ -287,7 +302,7 @@ const downloadFileById = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found or you don't have permission");
         }
 
-        console.log('Starting download for file:', file.filename, 'URL:', file.url);
+        console.log('[downloadFileById] Starting download for file:', file.filename, 'URL:', file.url);
 
         // Increment download count
         file.downloadCount += 1;
@@ -296,6 +311,7 @@ const downloadFileById = asyncHandler(async(req,res)=>{
         let fileResponse;
         try {
             // First try the direct URL (works for public files)
+            console.log('[downloadFileById] Attempting direct URL download...');
             fileResponse = await axios.get(file.url, {
                 responseType: 'stream',
                 timeout: 120000,
@@ -303,9 +319,12 @@ const downloadFileById = asyncHandler(async(req,res)=>{
                 validateStatus: (status) => status < 500
             });
 
+            console.log('[downloadFileById] Direct URL response status:', fileResponse.status);
+
             // If 401, try with signed URL
             if (fileResponse.status === 401) {
-                console.log('Got 401, generating signed URL for private file');
+                console.log('[downloadFileById] Got 401, generating signed URL for private file');
+                console.log('[downloadFileById] Original URL:', file.url);
                 
                 // Extract resource_type and public_id from Cloudinary URL
                 // Format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/v{version}/{public_id}
@@ -316,7 +335,8 @@ const downloadFileById = asyncHandler(async(req,res)=>{
                 
                 // Extract resource type (image, video, raw, etc.)
                 const beforeUpload = urlParts[0];
-                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\/$/);
+                console.log('[downloadFileById] URL before upload:', beforeUpload);
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)\//);
                 const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
                 
                 // Get the public_id (everything after /upload/ without version number)
@@ -324,23 +344,33 @@ const downloadFileById = asyncHandler(async(req,res)=>{
                 // Remove file extension for resource_type detection
                 publicId = publicId.replace(/\.[^/.]+$/, '');
                 
-                console.log('Detected resource type:', resourceType, 'Public ID:', publicId);
+                console.log('[downloadFileById] Detected resource type:', resourceType, 'Public ID:', publicId);
                 
                 // Generate signed URL using imported function
                 const signedUrl = generateSignedUrl(publicId, resourceType);
                 
-                console.log('Trying signed URL:', signedUrl);
+                if (!signedUrl) {
+                    throw new Error('Failed to generate signed URL - check Cloudinary credentials');
+                }
+                
+                console.log('[downloadFileById] Trying signed URL:', signedUrl);
                 fileResponse = await axios.get(signedUrl, {
                     responseType: 'stream',
                     timeout: 120000,
-                    maxRedirects: 5
+                    maxRedirects: 5,
+                    validateStatus: (status) => status < 500
                 });
+                
+                console.log('[downloadFileById] Signed URL response status:', fileResponse.status);
             }
 
-            console.log('Cloudinary response received, status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
+            console.log('[downloadFileById] Final response status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
         } catch (axiosError) {
-            console.error('Cloudinary access error:', axiosError.message);
-            throw new apiError(500, 'Unable to download file. The file may no longer be accessible from cloud storage. Try re-uploading the file.');
+            console.error('[downloadFileById] Cloudinary access error:', axiosError.message);
+            console.error('[downloadFileById] Error response status:', axiosError.response?.status);
+            console.error('[downloadFileById] Error response statusText:', axiosError.response?.statusText);
+            console.error('[downloadFileById] Original URL:', file.url);
+            throw new apiError(500, `Unable to download file: ${axiosError.message}. HTTP Status: ${axiosError.response?.status || 'N/A'}`);
         }
 
         // Force download by using application/octet-stream for all file types
