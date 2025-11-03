@@ -183,11 +183,16 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found");
         }
 
+        console.log('Starting download for file:', file.filename, 'URL:', file.url);
+
         // Stream file from Cloudinary with proper download headers
         const fileResponse = await axios.get(file.url, {
             responseType: 'stream',
-            timeout: 120000 // 2 minutes timeout for large files
+            timeout: 120000, // 2 minutes timeout for large files
+            maxRedirects: 5
         });
+
+        console.log('Cloudinary response received, content-length:', fileResponse.headers['content-length']);
 
         // Force download by using application/octet-stream for all file types
         // This prevents browser from trying to display PDFs, images, videos inline
@@ -211,13 +216,18 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             console.log('File download completed:', file.filename);
         });
     } catch (error) {
-        if(error.name === 'JsonWebTokenError') {
-            throw new apiError(400, "Invalid download token");
+        console.error('Download error:', error.message);
+        console.error('Error details:', error);
+        
+        if (!res.headersSent) {
+            if(error.name === 'JsonWebTokenError') {
+                throw new apiError(400, "Invalid download token");
+            }
+            if(error.name === 'TokenExpiredError') {
+                throw new apiError(400, "Download link has expired");
+            }
+            throw new apiError(500, "Error downloading file: " + error.message);
         }
-        if(error.name === 'TokenExpiredError') {
-            throw new apiError(400, "Download link has expired");
-        }
-        throw new apiError(500, "Error downloading file");
     }
 
 })
@@ -225,47 +235,61 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 const downloadFileById = asyncHandler(async(req,res)=>{
     const {FileId} = req.params;
 
-    if(!FileId){
-        throw new apiError(400, "File ID is required");
-    }
-
-    const file = await File.findOne({ _id: FileId, owner: req.user._id });
-
-    if(!file){
-        throw new apiError(404, "File not found or you don't have permission");
-    }
-
-    // Increment download count
-    file.downloadCount += 1;
-    await file.save();
-
-    // Stream file from Cloudinary with proper download headers
-    const fileResponse = await axios.get(file.url, {
-        responseType: 'stream',
-        timeout: 120000 // 2 minutes timeout for large files
-    });
-
-    // Force download by using application/octet-stream for all file types
-    // This prevents browser from trying to display PDFs, images, videos inline
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-    res.setHeader('Cache-Control', 'no-cache');
-    
-    if (fileResponse.headers['content-length']) {
-        res.setHeader('Content-Length', fileResponse.headers['content-length']);
-    }
-    
-    // Pipe the file stream to response with error handling
-    fileResponse.data.on('error', (err) => {
-        console.error('Stream error:', err);
-        if (!res.headersSent) {
-            res.status(500).json({ success: false, message: 'Error streaming file' });
+    try {
+        if(!FileId){
+            throw new apiError(400, "File ID is required");
         }
-    });
-    
-    fileResponse.data.pipe(res).on('finish', () => {
-        console.log('File download completed:', file.filename);
-    });
+
+        const file = await File.findOne({ _id: FileId, owner: req.user._id });
+
+        if(!file){
+            throw new apiError(404, "File not found or you don't have permission");
+        }
+
+        console.log('Starting download for file:', file.filename, 'URL:', file.url);
+
+        // Increment download count
+        file.downloadCount += 1;
+        await file.save();
+
+        // Stream file from Cloudinary with proper download headers
+        const fileResponse = await axios.get(file.url, {
+            responseType: 'stream',
+            timeout: 120000, // 2 minutes timeout for large files
+            maxRedirects: 5
+        });
+
+        console.log('Cloudinary response received, content-length:', fileResponse.headers['content-length']);
+
+        // Force download by using application/octet-stream for all file types
+        // This prevents browser from trying to display PDFs, images, videos inline
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+        res.setHeader('Cache-Control', 'no-cache');
+        
+        if (fileResponse.headers['content-length']) {
+            res.setHeader('Content-Length', fileResponse.headers['content-length']);
+        }
+        
+        // Pipe the file stream to response with error handling
+        fileResponse.data.on('error', (err) => {
+            console.error('Stream error:', err);
+            if (!res.headersSent) {
+                res.status(500).json({ success: false, message: 'Error streaming file' });
+            }
+        });
+        
+        fileResponse.data.pipe(res).on('finish', () => {
+            console.log('File download completed:', file.filename);
+        });
+    } catch (error) {
+        console.error('Download error:', error.message);
+        console.error('Error details:', error);
+        
+        if (!res.headersSent) {
+            throw error; // Let asyncHandler handle it
+        }
+    }
 })
 
 export {fileUpload,getFileById,getAllFiles,deleteFile,generateShareLink,downloadViaToken,downloadFileById}
