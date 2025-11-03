@@ -52,20 +52,49 @@ const AllFiles = () => {
 
   const handleDownload = async (fileId, filename) => {
     try {
+      console.log('Starting download for:', filename);
+      
       // Download file from backend with proper headers
       const response = await api.get(`/files/direct-download/${fileId}`, {
-        responseType: 'blob'
+        responseType: 'blob',
+        timeout: 120000, // 2 minutes timeout for large files
+        onDownloadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log('Download progress:', percentCompleted + '%');
+        }
       });
       
+      console.log('Response received, size:', response.data.size, 'bytes');
+      
+      // Verify we actually received data
+      if (!response.data || response.data.size === 0) {
+        throw new Error('Received empty file from server');
+      }
+      
+      // Get filename from header if available
+      const contentDisposition = response.headers['content-disposition'];
+      let downloadFilename = filename;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch && filenameMatch[1]) {
+          downloadFilename = filenameMatch[1];
+        }
+      }
+      
+      console.log('Downloading as:', downloadFilename);
+      
       // Create blob URL and trigger download
-      const blob = new Blob([response.data]);
+      const blob = new Blob([response.data], { type: 'application/octet-stream' });
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = filename;
+      link.download = downloadFilename;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
+      
+      console.log('Download triggered successfully');
       
       // Cleanup
       setTimeout(() => {
@@ -73,8 +102,22 @@ const AllFiles = () => {
         window.URL.revokeObjectURL(blobUrl);
       }, 100);
     } catch (error) {
-      console.error('Download error:', error);
-      alert('Failed to download file');
+      console.error('Download error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      let errorMessage = 'Failed to download file';
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Download timeout - file may be too large';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'File not found';
+      } else if (error.message.includes('empty file')) {
+        errorMessage = 'Received empty file from server';
+      }
+      
+      alert(errorMessage);
     }
   };
 
