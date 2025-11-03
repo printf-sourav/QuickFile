@@ -24,7 +24,7 @@ const fileUpload = asyncHandler(async (req,res,next)=>{
 
         const newFile = await File.create({
             filename:file.originalname,
-            url:result.url,
+            url:result.secure_url || result.url, // Use HTTPS URL
             size:file.size,
             owner: req.user?._id
         })
@@ -185,11 +185,18 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
         console.log('[downloadViaToken] Starting download for file:', file.filename, 'URL:', file.url);
 
+        // Ensure we use HTTPS for Cloudinary URLs
+        let fileUrl = file.url;
+        if (fileUrl.startsWith('http://res.cloudinary.com')) {
+            fileUrl = fileUrl.replace('http://', 'https://');
+            console.log('[downloadViaToken] Converted to HTTPS:', fileUrl);
+        }
+
         let fileResponse;
         try {
             // First try the direct URL (works for public files)
             console.log('[downloadViaToken] Attempting direct URL download...');
-            fileResponse = await axios.get(file.url, {
+            fileResponse = await axios.get(fileUrl, {
                 responseType: 'stream',
                 timeout: 120000,
                 maxRedirects: 5,
@@ -201,10 +208,10 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
             // If 401, generate authenticated signed URL
             if (fileResponse.status === 401) {
                 console.log('[downloadViaToken] Got 401 - Generating authenticated URL');
-                console.log('[downloadViaToken] Original URL:', file.url);
+                console.log('[downloadViaToken] Original URL:', fileUrl);
                 
                 // Extract public_id and resource_type from URL
-                const urlParts = file.url.split('/upload/');
+                const urlParts = fileUrl.split('/upload/');
                 if (urlParts.length < 2) {
                     throw new Error('Invalid Cloudinary URL format');
                 }
@@ -317,11 +324,18 @@ const downloadFileById = asyncHandler(async(req,res)=>{
         file.downloadCount += 1;
         await file.save();
 
+        // Ensure we use HTTPS for Cloudinary URLs
+        let fileUrl = file.url;
+        if (fileUrl.startsWith('http://res.cloudinary.com')) {
+            fileUrl = fileUrl.replace('http://', 'https://');
+            console.log('[downloadFileById] Converted to HTTPS:', fileUrl);
+        }
+
         let fileResponse;
         try {
             // First try the direct URL (works for public files)
             console.log('[downloadFileById] Attempting direct URL download...');
-            fileResponse = await axios.get(file.url, {
+            fileResponse = await axios.get(fileUrl, {
                 responseType: 'stream',
                 timeout: 120000,
                 maxRedirects: 5,
@@ -333,10 +347,10 @@ const downloadFileById = asyncHandler(async(req,res)=>{
             // If 401, generate authenticated signed URL
             if (fileResponse.status === 401) {
                 console.log('[downloadFileById] Got 401 - Generating authenticated URL');
-                console.log('[downloadFileById] Original URL:', file.url);
+                console.log('[downloadFileById] Original URL:', fileUrl);
                 
                 // Extract public_id and resource_type from URL
-                const urlParts = file.url.split('/upload/');
+                const urlParts = fileUrl.split('/upload/');
                 if (urlParts.length < 2) {
                     throw new Error('Invalid Cloudinary URL format');
                 }
