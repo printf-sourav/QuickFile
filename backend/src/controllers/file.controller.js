@@ -217,7 +217,14 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
                 }
                 
                 // Get resource type from URL path
-                const resourceTypeMatch = urlParts[0].match(/\/(image|video|raw)\//);
+                // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
+                const beforeUpload = urlParts[0];
+                console.log('[downloadViaToken] URL before /upload/:', beforeUpload);
+                
+                // Match resource type - it's the last segment before /upload/
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)$/);
+                console.log('[downloadViaToken] Resource type match:', resourceTypeMatch);
+                
                 const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
                 
                 // Get public_id - everything after version number, without extension
@@ -356,7 +363,14 @@ const downloadFileById = asyncHandler(async(req,res)=>{
                 }
                 
                 // Get resource type from URL path
-                const resourceTypeMatch = urlParts[0].match(/\/(image|video|raw)\//);
+                // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
+                const beforeUpload = urlParts[0];
+                console.log('[downloadFileById] URL before /upload/:', beforeUpload);
+                
+                // Match resource type - it's the last segment before /upload/
+                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)$/);
+                console.log('[downloadFileById] Resource type match:', resourceTypeMatch);
+                
                 const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
                 
                 // Get public_id - everything after version number, without extension
