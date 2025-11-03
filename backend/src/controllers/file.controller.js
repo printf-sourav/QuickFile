@@ -187,23 +187,44 @@ const downloadViaToken = asyncHandler(async(req,res)=>{
 
         let fileResponse;
         try {
-            // Try to stream file from Cloudinary
+            // First try the direct URL (works for public files)
             fileResponse = await axios.get(file.url, {
                 responseType: 'stream',
-                timeout: 120000, // 2 minutes timeout for large files
+                timeout: 120000,
                 maxRedirects: 5,
-                validateStatus: (status) => status < 500 // Don't throw on 4xx errors
+                validateStatus: (status) => status < 500
             });
 
-            // If we get 401, the URL might be authenticated/expired
+            // If 401, try with signed URL
             if (fileResponse.status === 401) {
-                throw new Error('Cloudinary URL is not publicly accessible or expired');
+                console.log('Got 401, generating signed URL for private file');
+                
+                // Extract public_id from Cloudinary URL
+                // URL format: https://res.cloudinary.com/cloud_name/resource_type/upload/v123/folder/file.ext
+                const urlParts = file.url.split('/upload/');
+                if (urlParts.length < 2) {
+                    throw new Error('Invalid Cloudinary URL format');
+                }
+                
+                // Get the public_id (everything after /upload/ without extension for some resources)
+                let publicId = urlParts[1].split('/').slice(1).join('/'); // Remove version number
+                
+                // Import generateSignedUrl from cloudinary utils
+                const { generateSignedUrl } = require('../utils/cloudinary.js');
+                const signedUrl = generateSignedUrl(publicId);
+                
+                console.log('Trying signed URL...');
+                fileResponse = await axios.get(signedUrl, {
+                    responseType: 'stream',
+                    timeout: 120000,
+                    maxRedirects: 5
+                });
             }
 
             console.log('Cloudinary response received, status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
         } catch (axiosError) {
             console.error('Cloudinary access error:', axiosError.message);
-            throw new apiError(500, 'File is not accessible from storage. Please re-upload the file.');
+            throw new apiError(500, 'Unable to download file. The file may no longer be accessible from cloud storage. Try re-uploading the file.');
         }
 
         // Force download by using application/octet-stream for all file types
