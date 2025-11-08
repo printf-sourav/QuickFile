@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomInput from '@/components/common/CustomInput';
@@ -13,11 +13,15 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the page the user was trying to access, default to /files
+  const from = (location.state as any)?.from || '/files';
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate('/files');
-  }, [user, navigate]);
+    if (user) navigate(from, { replace: true });
+  }, [user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +33,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-      navigate('/files');
+      navigate(from, { replace: true });
     } catch (error) {
       
     } finally {
