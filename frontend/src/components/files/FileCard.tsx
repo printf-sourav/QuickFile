@@ -1,4 +1,4 @@
-import { File, Copy, Trash2, Download } from 'lucide-react';
+import { File, Trash2, Download } from 'lucide-react';
 import CustomCard from '@/components/common/CustomCard';
 import api from '@/lib/axios';
 import CustomButton from '@/components/common/CustomButton';
@@ -24,10 +24,7 @@ const FileCard = ({ file, onDelete }: FileCardProps) => {
     return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(file.url);
-    toast.success('Link copied to clipboard!');
-  };
+  // Copy link removed per request.
 
   const handleDirectDownload = async () => {
     try {
@@ -83,14 +80,6 @@ const FileCard = ({ file, onDelete }: FileCardProps) => {
             onClick={handleDirectDownload}
           >
             Download
-          </CustomButton>
-          <CustomButton
-            variant="outline"
-            size="sm"
-            icon={Copy}
-            onClick={handleCopyLink}
-          >
-            Copy Link
           </CustomButton>
           <CustomButton
             variant="destructive"

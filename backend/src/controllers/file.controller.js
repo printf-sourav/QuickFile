@@ -36,8 +36,14 @@ const fileUpload = asyncHandler(async (req,res,next)=>{
                 throw new apiError(403, `Storage limit exceeded. You have used ${usedMb} MB of 100 MB. Delete some files to upload more.`);
             }
         }
-        await uploadToSupabase(bucket, file.path, destPath);
-        const publicUrl = getSupabaseFileURL(bucket, destPath);
+    await uploadToSupabase(bucket, file.path, destPath);
+    const publicUrl = getSupabaseFileURL(bucket, destPath);
+
+    let expiryHours = parseInt(req.body?.expiryHours, 10);
+    if (Number.isNaN(expiryHours) || expiryHours <= 0) expiryHours = 24; 
+    const MAX_HOURS = 30 * 24;
+    if (expiryHours > MAX_HOURS) expiryHours = MAX_HOURS;
+    const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
         const newFile = await File.create({
             filename: file.originalname,
             url: publicUrl,
@@ -45,7 +51,8 @@ const fileUpload = asyncHandler(async (req,res,next)=>{
             owner: req.user?._id,
             provider: 'supabase',
             bucket,
-            storagePath: destPath
+            storagePath: destPath,
+            expiresAt
         })
         return res.status(200).json(new apiResponse(200, newFile, "File uploaded successfully"))
     } catch (supErr) {
