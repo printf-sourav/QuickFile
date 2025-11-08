@@ -9,6 +9,10 @@ QuickFile is a simple file-sharing app. Backend uses Express + MongoDB with Supa
 
 ---
 
+**[🌐 Visit Live Site → quick-file.vercel.app](https://quick-file.vercel.app/)**  
+
+---
+
 ## 🌟 Features
 - Upload to Supabase Storage
 - Streaming downloads (Content-Disposition: attachment)
