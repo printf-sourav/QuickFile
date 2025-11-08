@@ -86,8 +86,12 @@ const Login = () => {
               </CustomButton>
               <p className="text-xs text-muted-foreground text-center">Tip: If you were redirected here after a refresh, just sign in again.</p>
             </form>
-
-            {}
+            <div className="mt-6 text-center">
+              <span className="text-sm text-muted-foreground">Don't have an account? </span>
+              <Link to="/signup" className="text-primary hover:underline font-medium">
+                Create one
+              </Link>
+            </div>
           </div>
         </motion.div>
       </div>

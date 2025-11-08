@@ -78,6 +78,11 @@ const Navbar = () => {
                   icon={theme === 'dark' ? Sun : Moon}
                   onClick={toggleTheme}
                 />
+                <Link to="/signup">
+                  <CustomButton variant="outline" size="sm">
+                    Sign Up
+                  </CustomButton>
+                </Link>
                 <Link to="/login">
                   <CustomButton variant="primary" size="sm">
                     Login

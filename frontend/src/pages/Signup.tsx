@@ -53,7 +53,7 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -62,17 +62,67 @@ const Signup = () => {
           className="max-w-md mx-auto"
         >
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">Registration Disabled</h1>
-            <p className="text-muted-foreground">
-              Account creation is currently closed.
-            </p>
+            <h1 className="text-4xl font-bold mb-2">Create your account</h1>
+            <p className="text-muted-foreground">Sign up to start uploading and sharing files</p>
           </div>
 
-          <div className="bg-card p-8 rounded-xl border border-border shadow-sm text-center">
-            <p className="text-sm text-muted-foreground">Sign ups are disabled. Please contact support if you need access.</p>
-            <div className="mt-6">
+          <div className="bg-card p-8 rounded-xl border border-border shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
+                  {error}
+                </div>
+              )}
+
+              <CustomInput
+                label="Name"
+                type="text"
+                icon={User}
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+
+              <CustomInput
+                label="Email"
+                type="email"
+                icon={Mail}
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+
+              <CustomInput
+                label="Password"
+                type="password"
+                icon={Lock}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+
+              <CustomInput
+                label="Confirm Password"
+                type="password"
+                icon={Lock}
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+
+              <CustomButton type="submit" disabled={isLoading} fullWidth>
+                {isLoading ? 'Creating account…' : 'Create Account'}
+              </CustomButton>
+            </form>
+
+            <div className="mt-6 text-center">
+              <span className="text-sm text-muted-foreground">Already have an account? </span>
               <Link to="/login" className="text-primary hover:underline font-medium">
-                Go to Login
+                Log in
               </Link>
             </div>
           </div>
