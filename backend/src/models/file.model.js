@@ -10,6 +10,9 @@ const fileSchema = new Schema({
         type:String,
         required:true
     },
+    provider: { type: String, enum: ['cloudinary','supabase'], default: 'supabase' },
+    bucket: { type: String },
+    storagePath: { type: String },
     size:{
         type:Number
     },

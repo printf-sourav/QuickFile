@@ -4,20 +4,6 @@ import { verifyJWT } from "../middleware/auth.middleware.js"
 
 const router = Router()
 
-/**
- * @swagger
- * /api/v1/stats:
- *   get:
- *     summary: Get statistics for the authenticated user
- *     tags:
- *       - Stats
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User statistics
- */
 router.route("/").get(verifyJWT,getUserStats)
-
 
 export default router;

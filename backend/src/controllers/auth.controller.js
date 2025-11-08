@@ -3,7 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js"
 
 import {apiError} from "../utils/apiError.js"
 import {apiResponse} from "../utils/apiResponse.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js" 
+import { uploadToSupabase, getSupabaseFileURL } from "../utils/superbase.js"
 import jwt from "jsonwebtoken"
 
 const generateNewAccessAndRefreshToken = async(userId)=>{
@@ -27,36 +27,19 @@ const registerUser = asyncHandler(async(req,res)=>{
     if(!username || !email || !password){
         throw new apiError(400,"All fields are required (username, email, password)");
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(!emailRegex.test(email)){
-        throw new apiError(400,"Please provide a valid email address");
-    }
-
-    // Password validation (minimum 6 characters)
     if(password.length < 6){
         throw new apiError(400,"Password must be at least 6 characters long");
     }
-
-    // Check if username already exists
     const existingUsername = await User.findOne({username: username.toLowerCase()});
     if(existingUsername){
         throw new apiError(409,"Username already taken. Please choose another username");
     }
-
-    // Check if email already exists
     const existingEmail = await User.findOne({email});
     if(existingEmail){
         throw new apiError(409,"Email already registered. Please login or use another email");
     }
 
-    const avatarLocalPath = req.file?.path 
-
-    const avatar = await uploadOnCloudinary(avatarLocalPath,`quickfile/${req.user?._id}`)
-
     const user = await User.create({
-        avatar: avatar?.url,
         email,
         password,
         username: username.toLowerCase()
@@ -75,23 +58,23 @@ const registerUser = asyncHandler(async(req,res)=>{
 })
 
 const loginUser = asyncHandler(async(req,res)=>{
-    const {username,password} = req.body??{};
+    
+    const {email,password} = req.body??{};
 
-    if(!username||!password){
-        throw new apiError(400,"Both username and password are required");
+    if(!email||!password){
+        throw new apiError(400,"Both email and password are required");
     }
 
-    // Find user by username (case-insensitive)
-    const user = await User.findOne({username: username.toLowerCase()});
+    const user = await User.findOne({email:email.toLowerCase()});
 
+    
     if(!user){
-        throw new apiError(404,"Username not found. Please check your username or register");
+        throw new apiError(401,"Wrong email or password");
     }
 
-    // Check password
     const isPasswordVaild = await user.isPasswordCorrect(password)
     if(!isPasswordVaild){
-        throw new apiError(401,"Incorrect password. Please try again");
+        throw new apiError(401,"Wrong email or password");
     }
 
     const {accessToken,refreshToken} = await generateNewAccessAndRefreshToken(user._id)
@@ -99,14 +82,18 @@ const loginUser = asyncHandler(async(req,res)=>{
     const loggedInUser = await User.findById(user._id).select(
         "-password -refreshToken"
     )
-    const option = {
-        httpOnly:true,
-        secure:true
+    const isProd = process.env.NODE_ENV === 'production'
+    const accessMaxAgeMs = 24 * 60 * 60 * 1000; 
+    const refreshMaxAgeMs = 10 * 24 * 60 * 60 * 1000; 
+    const baseCookie = {
+        httpOnly: true,
+        secure: isProd, 
+        sameSite: isProd ? 'None' : 'Lax'
     }
 
     return res.status(200)
-    .cookie("accessToken",accessToken,option)
-    .cookie("refreshToken",refreshToken,option)
+    .cookie("accessToken",accessToken,{ ...baseCookie, maxAge: accessMaxAgeMs })
+    .cookie("refreshToken",refreshToken,{ ...baseCookie, maxAge: refreshMaxAgeMs })
     .json(
         new apiResponse(200,loggedInUser,"User Logged IN")
     );
@@ -124,9 +111,11 @@ const logoutUser = asyncHandler(async(req,res)=>{
             new:true
         }
     )
+    const isProd = process.env.NODE_ENV === 'production'
     const option={
         httpOnly:true,
-        secure:true
+        secure:isProd,
+        sameSite: isProd ? 'None' : 'Lax'
     }
 
     return res.status(200)
@@ -156,9 +145,11 @@ const refreshAccessToken = asyncHandler(async(req,res)=>{
             throw new apiError(401, "Refresh Token expire")
         }
 
+        const isProd = process.env.NODE_ENV === 'production'
         const options = {
             httpOnly: true,
-            secure:true
+            secure: isProd,
+            sameSite: isProd ? 'None' : 'Lax'
         }
 
         const {accessToken,refreshToken}= await generateNewAccessAndRefreshToken(user._id);

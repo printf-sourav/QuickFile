@@ -2,41 +2,66 @@ import { File } from "../models/file.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {apiError} from "../utils/apiError.js"
 import { apiResponse } from "../utils/apiResponse.js";
-import { uploadOnCloudinary, generateSignedUrl } from "../utils/cloudinary.js";
-import jwt from "jsonwebtoken"
+import { uploadToSupabase, getSupabaseFileURL, createSupabaseSignedUrl, supabase } from "../utils/superbase.js";
+import fs from 'fs'
 import mongoose  from "mongoose";
-import axios from "axios"
+ 
 
 
 const fileUpload = asyncHandler(async (req,res,next)=>{
-    const files = req.files;
-    if(!files || files.length == 0){
-        throw new apiError(400,"Files are missing");
+    const file = req.file;
+    if(!file){
+        throw new apiError(400,"File is missing (expected field 'file')");
     }
-    
-
-    const uploadedFiles = [];
-    for(const file of files){
-        const result = await uploadOnCloudinary(file.path)
-        if(!result){
-            throw new apiError(500,"SOmething went wrong while uploading file")
+    const bucket = process.env.SUPABASE_BUCKET || 'quickfile';
+    if (!process.env.SUPABASE_URL) {
+        throw new apiError(500, 'Storage misconfigured: SUPABASE_URL missing');
+    }
+    if (!process.env.SUPABASE_ANON_KEY && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new apiError(500, 'Storage misconfigured: SUPABASE key missing');
+    }
+    const destPath = `${req.user?._id || 'anonymous'}/${Date.now()}-${file.originalname}`;
+    try {
+        const LIMIT_BYTES = 100 * 1024 * 1024;
+        const userId = req.user?._id;
+        if (userId) {
+            const agg = await File.aggregate([
+                { $match: { owner: new mongoose.Types.ObjectId(userId) } },
+                { $group: { _id: null, total: { $sum: "$size" } } }
+            ]);
+            const used = agg[0]?.total || 0;
+            if (used + file.size > LIMIT_BYTES) {
+                try { fs.unlinkSync(file.path); } catch {}
+                const usedMb = (used / (1024*1024)).toFixed(2);
+                throw new apiError(403, `Storage limit exceeded. You have used ${usedMb} MB of 100 MB. Delete some files to upload more.`);
+            }
         }
-
+        await uploadToSupabase(bucket, file.path, destPath);
+        const publicUrl = getSupabaseFileURL(bucket, destPath);
         const newFile = await File.create({
-            filename:file.originalname,
-            url:result.secure_url || result.url, // Use HTTPS URL
-            size:file.size,
-            owner: req.user?._id
+            filename: file.originalname,
+            url: publicUrl,
+            size: file.size,
+            owner: req.user?._id,
+            provider: 'supabase',
+            bucket,
+            storagePath: destPath
         })
-        uploadedFiles.push(newFile);
+        return res.status(200).json(new apiResponse(200, newFile, "File uploaded successfully"))
+    } catch (supErr) {
+        console.error('[fileUpload] Supabase upload failed:', {
+            message: supErr?.message,
+            code: supErr?.code,
+            name: supErr?.name,
+            status: supErr?.status,
+            details: supErr?.errorDetails || supErr
+        });
+        throw new apiError(500, `Upload failed: ${supErr?.message || 'unknown error'}`,[{
+            code: supErr?.code,
+            name: supErr?.name,
+            status: supErr?.status,
+        }]);
     }
-
-    return res.status(200)
-    .json(
-        new apiResponse(200,uploadedFiles,"Files uploaded successfully")
-    )
-
-    
 })
 
 const getFileById = asyncHandler(async(req,res,next)=>{
@@ -63,7 +88,7 @@ const getAllFiles = asyncHandler(async(req,res,next)=>{
     const skip = (page-1)*limit
 
     const Search = req.query.search||""
-    const querySearch = Search? {filename:{$regex:Search,Option:"i"}} : {}
+    const querySearch = Search? { filename: { $regex: Search, $options: "i" } } : {}
 
     const filters={};
     if(req.query.type) filters.type = req.query.type;
@@ -82,13 +107,7 @@ const getAllFiles = asyncHandler(async(req,res,next)=>{
     .limit(limit)
     .sort({createdAt:-1})
     .populate("owner","_id username")
-    if(!files||files.length==0){
-        throw new apiError(404,"Files not found");
-    }
-    return res.status(200)
-    .json(
-        new apiResponse(200,files,"Files fetched")
-    )
+    return res.status(200).json(new apiResponse(200, files, "Files fetched"))
 })
 const deleteFile = asyncHandler(async(req,res,next)=>{
     const {FileId} = req.params;
@@ -97,13 +116,11 @@ const deleteFile = asyncHandler(async(req,res,next)=>{
         throw new apiError(400,"Please mention file id");
     }
     
-    // Verify the file belongs to the user
     const file = await File.findOne({ _id: FileId, owner: req.user._id });
     if(!file){
         throw new apiError(404,"File not found or you don't have permission to delete it");
     }
     
-    // Delete the file
     await File.findByIdAndDelete(FileId);
     
     return res.status(200)
@@ -112,204 +129,6 @@ const deleteFile = asyncHandler(async(req,res,next)=>{
     )
 })
 
-
-const generateShareLink = asyncHandler(async(req,res)=>{
-    const fileId = req.params.id
-
-   if (!mongoose.isValidObjectId(fileId)) {
-        throw new apiError(400, "Invalid file id");
-    }
-    const file = await File.findById(fileId);
-    if(!file){
-        throw new apiError(404,"File not found!!");
-    }
-    const token = jwt.sign(
-        {_id:file._id},
-        process.env.SHARE_LINK_TOKEN,
-        {expiresIn:process.env.SHARE_LINK_TOKEN_EXPIRY}
-    )
-
-    if(!token){
-        throw new apiError(500,"Error while creating token");
-    }
-
-    // Generate frontend URL instead of backend API URL
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const longUrl = `${frontendUrl}/download/${token}`;
-
-    try {
-        const { data } = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-        const shortUrl = data;
-
-        return res.status(200)
-        .json(
-            new apiResponse(
-                200,
-                {shortUrl,longUrl, token},
-                "Link successfully created"
-            )
-        )
-    } catch (error) {
-        // If TinyURL fails, just return the long URL
-        return res.status(200)
-        .json(
-            new apiResponse(
-                200,
-                {shortUrl: longUrl, longUrl, token},
-                "Link successfully created"
-            )
-        )
-    }
-
-})
-
-const downloadViaToken = asyncHandler(async(req,res)=>{
-    const token = req.params.token
-
-    try {
-        const decoded = jwt.verify(token, process.env.SHARE_LINK_TOKEN);
-
-        if(!decoded){
-            throw new apiError(404, "Invalid token or it's expired")
-        }
-
-        const fileId = decoded._id
-
-        const file = await File.findByIdAndUpdate(fileId, {
-            $inc: {downloadCount: 1}
-        }, {new: true});
-
-        if(!file){
-            throw new apiError(404, "File not found");
-        }
-
-        console.log('[downloadViaToken] Starting download for file:', file.filename, 'URL:', file.url);
-
-        // Ensure we use HTTPS for Cloudinary URLs
-        let fileUrl = file.url;
-        if (fileUrl.startsWith('http://res.cloudinary.com')) {
-            fileUrl = fileUrl.replace('http://', 'https://');
-            console.log('[downloadViaToken] Converted to HTTPS:', fileUrl);
-        }
-
-        let fileResponse;
-        try {
-            // First try the direct URL (works for public files)
-            console.log('[downloadViaToken] Attempting direct URL download...');
-            fileResponse = await axios.get(fileUrl, {
-                responseType: 'stream',
-                timeout: 120000,
-                maxRedirects: 5,
-                validateStatus: (status) => status < 500
-            });
-
-            console.log('[downloadViaToken] Direct URL response status:', fileResponse.status);
-
-            // If 401, generate authenticated signed URL
-            if (fileResponse.status === 401) {
-                console.log('[downloadViaToken] Got 401 - Generating authenticated URL');
-                console.log('[downloadViaToken] Original URL:', fileUrl);
-                
-                // Extract public_id and resource_type from URL
-                const urlParts = fileUrl.split('/upload/');
-                if (urlParts.length < 2) {
-                    throw new Error('Invalid Cloudinary URL format');
-                }
-                
-                // Get resource type from URL path
-                // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
-                const beforeUpload = urlParts[0];
-                console.log('[downloadViaToken] URL before /upload/:', beforeUpload);
-                
-                // Match resource type - it's the last segment before /upload/
-                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)$/);
-                console.log('[downloadViaToken] Resource type match:', resourceTypeMatch);
-                
-                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
-                
-                // Get public_id - everything after version number, without extension
-                const afterUpload = urlParts[1];
-                const pathParts = afterUpload.split('/');
-                // Remove version (v12345...) and reconstruct path
-                const publicIdParts = pathParts.slice(1); // Skip version
-                const publicId = publicIdParts.join('/').replace(/\.[^/.]+$/, ''); // Remove extension
-                
-                console.log('[downloadViaToken] Extracted - resourceType:', resourceType, 'publicId:', publicId);
-                
-                // Generate authenticated URL
-                const authUrl = generateSignedUrl(publicId, resourceType);
-                
-                if (!authUrl) {
-                    throw new Error('Failed to generate authenticated URL');
-                }
-                
-                console.log('[downloadViaToken] Trying authenticated URL');
-                fileResponse = await axios.get(authUrl, {
-                    responseType: 'stream',
-                    timeout: 120000,
-                    maxRedirects: 5,
-                    validateStatus: (status) => status < 500
-                });
-                
-                console.log('[downloadViaToken] Authenticated URL response status:', fileResponse.status);
-                
-                // If still 401, it's a permanent issue
-                if (fileResponse.status === 401) {
-                    throw new Error('Unable to access file - Cloudinary authentication failed. Please check Cloudinary account settings.');
-                }
-            }
-            
-            // Check for other non-200 status codes
-            if (fileResponse.status !== 200) {
-                throw new Error(`Cloudinary returned status ${fileResponse.status}`);
-            }
-
-            console.log('[downloadViaToken] Final response status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
-        } catch (axiosError) {
-            console.error('[downloadViaToken] Cloudinary access error:', axiosError.message);
-            console.error('[downloadViaToken] Error response status:', axiosError.response?.status);
-            console.error('[downloadViaToken] Error response statusText:', axiosError.response?.statusText);
-            console.error('[downloadViaToken] Original URL:', file.url);
-            throw new apiError(500, `Unable to download file: ${axiosError.message}. HTTP Status: ${axiosError.response?.status || 'N/A'}`);
-        }
-
-        // Force download by using application/octet-stream for all file types
-        // This prevents browser from trying to display PDFs, images, videos inline
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-        res.setHeader('Cache-Control', 'no-cache');
-        
-        if (fileResponse.headers['content-length']) {
-            res.setHeader('Content-Length', fileResponse.headers['content-length']);
-        }
-        
-        // Pipe the file stream to response with error handling
-        fileResponse.data.on('error', (err) => {
-            console.error('Stream error:', err);
-            if (!res.headersSent) {
-                res.status(500).json({ success: false, message: 'Error streaming file' });
-            }
-        });
-        
-        fileResponse.data.pipe(res).on('finish', () => {
-            console.log('File download completed:', file.filename);
-        });
-    } catch (error) {
-        console.error('Download error:', error.message);
-        console.error('Error details:', error);
-        
-        if (!res.headersSent) {
-            if(error.name === 'JsonWebTokenError') {
-                throw new apiError(400, "Invalid download token");
-            }
-            if(error.name === 'TokenExpiredError') {
-                throw new apiError(400, "Download link has expired");
-            }
-            throw new apiError(500, "Error downloading file: " + error.message);
-        }
-    }
-
-})
 
 const downloadFileById = asyncHandler(async(req,res)=>{
     const {FileId} = req.params;
@@ -325,129 +144,41 @@ const downloadFileById = asyncHandler(async(req,res)=>{
             throw new apiError(404, "File not found or you don't have permission");
         }
 
-        console.log('[downloadFileById] Starting download for file:', file.filename, 'URL:', file.url);
 
-        // Increment download count
         file.downloadCount += 1;
         await file.save();
 
-        // Ensure we use HTTPS for Cloudinary URLs
         let fileUrl = file.url;
-        if (fileUrl.startsWith('http://res.cloudinary.com')) {
-            fileUrl = fileUrl.replace('http://', 'https://');
-            console.log('[downloadFileById] Converted to HTTPS:', fileUrl);
-        }
-
-        let fileResponse;
-        try {
-            // First try the direct URL (works for public files)
-            console.log('[downloadFileById] Attempting direct URL download...');
-            fileResponse = await axios.get(fileUrl, {
-                responseType: 'stream',
-                timeout: 120000,
-                maxRedirects: 5,
-                validateStatus: (status) => status < 500
-            });
-
-            console.log('[downloadFileById] Direct URL response status:', fileResponse.status);
-
-            // If 401, generate authenticated signed URL
-            if (fileResponse.status === 401) {
-                console.log('[downloadFileById] Got 401 - Generating authenticated URL');
-                console.log('[downloadFileById] Original URL:', fileUrl);
-                
-                // Extract public_id and resource_type from URL
-                const urlParts = fileUrl.split('/upload/');
-                if (urlParts.length < 2) {
-                    throw new Error('Invalid Cloudinary URL format');
+        if (file.provider === 'supabase') {
+            try {
+                const bucket = file.bucket || (process.env.SUPABASE_BUCKET || 'quickfile');
+                const path = file.storagePath;
+                if (!path) throw new Error('storagePath missing');
+                const { data, error } = await supabase.storage.from(bucket).download(path);
+                if (error) throw error;
+                res.setHeader('Content-Type', 'application/octet-stream');
+                res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+                if (typeof data.stream === 'function') {
+                    const { Readable } = await import('stream');
+                    return Readable.fromWeb(data.stream()).pipe(res);
                 }
-                
-                // Get resource type from URL path
-                // URL format: https://res.cloudinary.com/{cloud}/{resource_type}/upload/...
-                const beforeUpload = urlParts[0];
-                console.log('[downloadFileById] URL before /upload/:', beforeUpload);
-                
-                // Match resource type - it's the last segment before /upload/
-                const resourceTypeMatch = beforeUpload.match(/\/(image|video|raw)$/);
-                console.log('[downloadFileById] Resource type match:', resourceTypeMatch);
-                
-                const resourceType = resourceTypeMatch ? resourceTypeMatch[1] : 'image';
-                
-                // Get public_id - everything after version number, without extension
-                const afterUpload = urlParts[1];
-                const pathParts = afterUpload.split('/');
-                // Remove version (v12345...) and reconstruct path
-                const publicIdParts = pathParts.slice(1); // Skip version
-                const publicId = publicIdParts.join('/').replace(/\.[^/.]+$/, ''); // Remove extension
-                
-                console.log('[downloadFileById] Extracted - resourceType:', resourceType, 'publicId:', publicId);
-                
-                // Generate authenticated URL
-                const authUrl = generateSignedUrl(publicId, resourceType);
-                
-                if (!authUrl) {
-                    throw new Error('Failed to generate authenticated URL');
-                }
-                
-                console.log('[downloadFileById] Trying authenticated URL');
-                fileResponse = await axios.get(authUrl, {
-                    responseType: 'stream',
-                    timeout: 120000,
-                    maxRedirects: 5,
-                    validateStatus: (status) => status < 500
-                });
-                
-                console.log('[downloadFileById] Authenticated URL response status:', fileResponse.status);
-                
-                // If still 401, it's a permanent issue
-                if (fileResponse.status === 401) {
-                    throw new Error('Unable to access file - Cloudinary authentication failed. Please check Cloudinary account settings.');
-                }
+                const buf = Buffer.from(await data.arrayBuffer());
+                res.setHeader('Content-Length', buf.length);
+                return res.status(200).send(buf);
+            } catch (e) {
+                try {
+                    const bucket = file.bucket || (process.env.SUPABASE_BUCKET || 'quickfile');
+                    const path = file.storagePath || '';
+                    const signed = await createSupabaseSignedUrl(bucket, path, 600);
+                    if (signed) return res.redirect(302, signed);
+                } catch {}
             }
-            
-            // Check for other non-200 status codes
-            if (fileResponse.status !== 200) {
-                throw new Error(`Cloudinary returned status ${fileResponse.status}`);
-            }
-
-            console.log('[downloadFileById] Final response status:', fileResponse.status, 'content-length:', fileResponse.headers['content-length']);
-        } catch (axiosError) {
-            console.error('[downloadFileById] Cloudinary access error:', axiosError.message);
-            console.error('[downloadFileById] Error response status:', axiosError.response?.status);
-            console.error('[downloadFileById] Error response statusText:', axiosError.response?.statusText);
-            console.error('[downloadFileById] Original URL:', file.url);
-            throw new apiError(500, `Unable to download file: ${axiosError.message}. HTTP Status: ${axiosError.response?.status || 'N/A'}`);
         }
-
-        // Force download by using application/octet-stream for all file types
-        // This prevents browser from trying to display PDFs, images, videos inline
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
-        res.setHeader('Cache-Control', 'no-cache');
-        
-        if (fileResponse.headers['content-length']) {
-            res.setHeader('Content-Length', fileResponse.headers['content-length']);
-        }
-        
-        // Pipe the file stream to response with error handling
-        fileResponse.data.on('error', (err) => {
-            console.error('Stream error:', err);
-            if (!res.headersSent) {
-                res.status(500).json({ success: false, message: 'Error streaming file' });
-            }
-        });
-        
-        fileResponse.data.pipe(res).on('finish', () => {
-            console.log('File download completed:', file.filename);
-        });
+        return res.redirect(302, fileUrl);
     } catch (error) {
-        console.error('Download error:', error.message);
-        console.error('Error details:', error);
-        
         if (!res.headersSent) {
-            throw error; // Let asyncHandler handle it
+            throw error;
         }
     }
 })
-
-export {fileUpload,getFileById,getAllFiles,deleteFile,generateShareLink,downloadViaToken,downloadFileById}
+export {fileUpload,getFileById,getAllFiles,deleteFile,downloadFileById}
