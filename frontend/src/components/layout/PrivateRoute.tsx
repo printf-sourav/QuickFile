@@ -15,7 +15,15 @@ const PrivateRoute = () => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Only pass 'from' if it's not already /login or /signup to avoid loops
+    const shouldPassFrom = location.pathname !== '/login' && location.pathname !== '/signup';
+    return (
+      <Navigate 
+        to="/login" 
+        replace 
+        state={shouldPassFrom ? { from: location.pathname } : undefined} 
+      />
+    );
   }
 
   return <Outlet />;

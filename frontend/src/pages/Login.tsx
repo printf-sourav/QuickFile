@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import CustomInput from '@/components/common/CustomInput';
@@ -12,17 +12,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  
-  // Get the page the user was trying to access, default to /files
-  // Avoid redirecting back to /login or /signup
-  const from = (location.state as any)?.from;
-  const redirectTo = (from && from !== '/login' && from !== '/signup') ? from : '/files';
-
-  // Redirect if already logged in
-  if (user) {
-    return <Navigate to={redirectTo} replace />;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,9 +25,15 @@ const Login = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-      // Navigation will happen automatically when user state updates
-    } catch (error) {
       
+      // Get redirect path, avoid loops
+      const from = (location.state as any)?.from;
+      const redirectTo = (from && from !== '/login' && from !== '/signup') ? from : '/files';
+      
+      // Navigate after successful login
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      // Error already handled by login function
     } finally {
       setIsLoading(false);
     }
