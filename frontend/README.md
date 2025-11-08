@@ -9,7 +9,7 @@ A modern, responsive file-sharing web application built with React, Vite, Tailwi
 - **Drag & Drop Upload**: Intuitive file upload with progress tracking
 - **Auto-Expiry**: Files automatically delete after set time (1h, 6h, 24h, 3d, 7d)
 - **File Management**: View, copy link, and delete uploaded files
-- **JWT Authentication**: Secure login/signup with token-based auth
+- **Authentication**: Cookie-based session with httpOnly cookies
 - **Real-time Notifications**: Toast notifications using react-hot-toast
 - **Smooth Animations**: Framer Motion animations throughout
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
@@ -66,7 +66,7 @@ src/
 
 - Node.js (v16 or higher)
 - npm or yarn
-- Backend API running (Node + Express + MongoDB + Cloudinary)
+- Backend API running (Node + Express + MongoDB + Supabase)
 
 ## 🚦 Getting Started
 
@@ -88,10 +88,10 @@ npm install
 Create a `.env` file in the root directory:
 
 ```env
-VITE_API_BASE_URL=http://localhost:5000/api
+VITE_API_URL=http://127.0.0.1:8000/api
 ```
 
-Replace `http://localhost:5000/api` with your backend API URL.
+If omitted, the app uses `window.location.origin + /api`. On HTTPS, it avoids calling HTTP backends to prevent mixed content.
 
 ### 4. Start the development server
 
@@ -105,16 +105,16 @@ The app will be available at `http://localhost:8080`
 
 ### Backend API Endpoints Expected
 
-Your Node + Express + MongoDB + Cloudinary backend should provide these endpoints:
+Your Node + Express + MongoDB + Supabase backend provides these endpoints (prefix `/api`):
 
 #### Authentication
-- `POST /api/auth/register` - Register new user
+- `POST /api/users/register` - Register new user
   ```json
   Request: { "name": "string", "email": "string", "password": "string" }
   Response: { "token": "string", "user": { "id": "string", "name": "string", "email": "string" } }
   ```
 
-- `POST /api/auth/login` - Login user
+- `POST /api/users/login` - Login user
   ```json
   Request: { "email": "string", "password": "string" }
   Response: { "token": "string", "user": { "id": "string", "name": "string", "email": "string" } }
@@ -138,7 +138,7 @@ Your Node + Express + MongoDB + Cloudinary backend should provide these endpoint
   }
   ```
 
-- `GET /api/files` - Get user's files (requires auth token)
+- `GET /api/files/allfile` - Get user's files (requires auth)
   ```json
   Response: {
     "files": [
@@ -154,37 +154,24 @@ Your Node + Express + MongoDB + Cloudinary backend should provide these endpoint
   }
   ```
 
-- `DELETE /api/files/:id` - Delete file (requires auth token)
+- `DELETE /api/files/:id` - Delete file (requires auth)
   ```json
   Response: { "message": "File deleted successfully" }
   ```
 
 ### Authentication Flow
 
-1. **JWT Token Storage**: Tokens are stored in `localStorage` as `token` and `user`
-2. **Axios Interceptor**: Automatically adds `Authorization: Bearer <token>` to all requests
-3. **Auto Logout**: If API returns 401, user is automatically logged out and redirected to login
+1. **Session Cookies**: Auth is handled by httpOnly cookies set by the backend. A minimal `user` object is stored in localStorage for UI restore.
+2. **Axios Interceptor**: Sends credentials by default and optionally attaches a Bearer token if present.
+3. **Protected Routes**: `PrivateRoute` redirects unauthenticated users to `/login`.
 
 ### CORS Configuration
 
-Make sure your backend has CORS enabled for the frontend URL:
+Backend reads `CORS_ORIGIN` from `.env`. Use `*` for dev or a CSV list of allowed origins for production.
 
-```javascript
-// Express backend example
-const cors = require('cors');
-app.use(cors({
-  origin: 'http://localhost:8080', // Your frontend URL
-  credentials: true
-}));
-```
+### File Upload with Supabase
 
-### File Upload with Cloudinary
-
-The frontend sends files as `multipart/form-data`. Your backend should:
-1. Receive the file using middleware like `multer`
-2. Upload to Cloudinary
-3. Store file metadata in MongoDB with expiry time
-4. Return the Cloudinary URL and file details
+The frontend sends files as `multipart/form-data`. The backend uses Multer for temp handling and uploads to Supabase Storage, then returns stored metadata.
 
 ## 🎨 Design System
 
