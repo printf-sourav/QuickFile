@@ -87,14 +87,7 @@ const Login = () => {
               <p className="text-xs text-muted-foreground text-center">Tip: If you were redirected here after a refresh, just sign in again.</p>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link to="/signup" className="text-primary hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
-            </div>
+            {}
           </div>
         </motion.div>
       </div>

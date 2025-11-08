@@ -79,13 +79,8 @@ const Navbar = () => {
                   onClick={toggleTheme}
                 />
                 <Link to="/login">
-                  <CustomButton variant="ghost" size="sm">
-                    Login
-                  </CustomButton>
-                </Link>
-                <Link to="/signup">
                   <CustomButton variant="primary" size="sm">
-                    Sign Up
+                    Login
                   </CustomButton>
                 </Link>
               </>

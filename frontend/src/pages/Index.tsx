@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FileUp, Shield, Clock, Zap } from 'lucide-react';
 import CustomButton from '@/components/common/CustomButton';
 import Navbar from '@/components/layout/Navbar';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const features = [
@@ -27,6 +28,8 @@ const Index = () => {
       description: 'Upload and share files in seconds',
     },
   ];
+
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,11 +56,13 @@ const Index = () => {
                   Start Uploading
                 </CustomButton>
               </Link>
-              <Link to="/signup">
-                <CustomButton variant="outline" size="lg">
-                  Create Account
-                </CustomButton>
-              </Link>
+              {!user && (
+                <Link to="/signup">
+                  <CustomButton variant="outline" size="lg">
+                    Create Account
+                  </CustomButton>
+                </Link>
+              )}
             </div>
           </motion.div>
         </div>
@@ -124,11 +129,13 @@ const Index = () => {
             <p className="text-lg mb-8 opacity-90">
               Join thousands of users sharing files securely with QuickFile.
             </p>
-            <Link to="/signup">
-              <CustomButton variant="secondary" size="lg">
-                Create Free Account
-              </CustomButton>
-            </Link>
+            {!user && (
+              <Link to="/signup">
+                <CustomButton variant="secondary" size="lg">
+                  Create Free Account
+                </CustomButton>
+              </Link>
+            )}
           </motion.div>
         </div>
       </section>

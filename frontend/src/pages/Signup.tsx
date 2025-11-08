@@ -18,10 +18,7 @@ const Signup = () => {
   const navigate = useNavigate();
 
   // Redirect if already logged in
-  if (user) {
-    navigate('/files');
-    return null;
-  }
+  if (user) return null; // hide entire signup if logged in
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,71 +62,18 @@ const Signup = () => {
           className="max-w-md mx-auto"
         >
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">Create Account</h1>
+            <h1 className="text-4xl font-bold mb-2">Registration Disabled</h1>
             <p className="text-muted-foreground">
-              Start sharing files securely
+              Account creation is currently closed.
             </p>
           </div>
 
-          <div className="bg-card p-8 rounded-xl border border-border shadow-sm">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <CustomInput
-                label="Name"
-                type="text"
-                icon={User}
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-
-              <CustomInput
-                label="Email"
-                type="email"
-                icon={Mail}
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-
-              <CustomInput
-                label="Password"
-                type="password"
-                icon={Lock}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-
-              <CustomInput
-                label="Confirm Password"
-                type="password"
-                icon={Lock}
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                error={error}
-                required
-              />
-
-              <CustomButton
-                type="submit"
-                disabled={isLoading}
-                fullWidth
-              >
-                {isLoading ? 'Creating account...' : 'Create Account'}
-              </CustomButton>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link to="/login" className="text-primary hover:underline font-medium">
-                  Sign in
-                </Link>
-              </p>
+          <div className="bg-card p-8 rounded-xl border border-border shadow-sm text-center">
+            <p className="text-sm text-muted-foreground">Sign ups are disabled. Please contact support if you need access.</p>
+            <div className="mt-6">
+              <Link to="/login" className="text-primary hover:underline font-medium">
+                Go to Login
+              </Link>
             </div>
           </div>
         </motion.div>
