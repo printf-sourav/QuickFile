@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
@@ -14,15 +14,19 @@ const Login = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const hasRedirected = useRef(false);
   
   // Get the page the user was trying to access, default to /files
   // Avoid redirecting back to /login or /signup
-  const from = (location.state as any)?.from;
-  const redirectTo = (from && from !== '/login' && from !== '/signup') ? from : '/files';
+  const redirectTo = useMemo(() => {
+    const from = (location.state as any)?.from;
+    return (from && from !== '/login' && from !== '/signup') ? from : '/files';
+  }, [location.state]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (only once)
   useEffect(() => {
-    if (user) {
+    if (user && !hasRedirected.current) {
+      hasRedirected.current = true;
       navigate(redirectTo, { replace: true });
     }
   }, [user, navigate, redirectTo]);

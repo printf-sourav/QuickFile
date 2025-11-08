@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User } from 'lucide-react';
@@ -16,9 +16,15 @@ const Signup = () => {
   const [error, setError] = useState('');
   const { register, user } = useAuth();
   const navigate = useNavigate();
+  const hasRedirected = useRef(false);
 
-  // Redirect if already logged in
-  if (user) return null; // hide entire signup if logged in
+  // Redirect if already logged in (only once)
+  useEffect(() => {
+    if (user && !hasRedirected.current) {
+      hasRedirected.current = true;
+      navigate('/files', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +48,7 @@ const Signup = () => {
     setIsLoading(true);
     try {
       await register(name, email, password);
-      navigate('/files');
+      // Navigation will be handled by useEffect after user state updates
     } catch (error) {
       
     } finally {

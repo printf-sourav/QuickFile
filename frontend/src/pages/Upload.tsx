@@ -1,25 +1,8 @@
 import { motion } from 'framer-motion';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/layout/Navbar';
 import FileUpload from '@/components/files/FileUpload';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 const Upload = () => {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
