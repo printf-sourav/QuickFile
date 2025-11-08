@@ -1,10 +1,9 @@
-# 📁 QuickFile (Monorepo)
+# 📁 QuickFile 
 
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)
 
 QuickFile is a simple file-sharing app. Backend uses Express + MongoDB with Supabase Storage; Frontend is React (Vite + TypeScript). Auth uses httpOnly cookies; downloads stream as attachments. CORS is minimal and configured via env.
 
