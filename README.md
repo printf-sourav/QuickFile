@@ -5,7 +5,7 @@
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 
-QuickFile is a simple file-sharing app. Backend uses Express + MongoDB with Supabase Storage; Frontend is React (Vite + TypeScript). Auth uses httpOnly cookies; downloads stream as attachments. CORS is minimal and configured via env.
+QuickFile is a simple file-sharing app. Backend uses Express + MongoDB with Supabase Storage; Frontend is React (Vite + TypeScript). Auth uses httpOnly cookies; downloads stream as attachments.
 
 ---
 
