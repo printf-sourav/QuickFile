@@ -16,12 +16,16 @@ const Login = () => {
   const location = useLocation();
   
   // Get the page the user was trying to access, default to /files
-  const from = (location.state as any)?.from || '/files';
+  // Avoid redirecting back to /login or /signup
+  const from = (location.state as any)?.from;
+  const redirectTo = (from && from !== '/login' && from !== '/signup') ? from : '/files';
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate(from, { replace: true });
-  }, [user, navigate, from]);
+    if (user) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, navigate, redirectTo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +37,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       await login(email, password);
-      navigate(from, { replace: true });
+      // Navigation will be handled by useEffect after user state updates
     } catch (error) {
       
     } finally {
