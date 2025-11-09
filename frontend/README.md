@@ -267,4 +267,4 @@ For issues and questions, please open an issue in the repository.
 
 ---
 
-Built with ❤️ using Lovable
+Built with ❤️
