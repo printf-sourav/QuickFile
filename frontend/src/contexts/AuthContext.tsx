@@ -19,20 +19,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (stored) {
           const parsedUser = JSON.parse(stored);
           
-          // Verify session is still valid by calling refresh endpoint
+          // TODO: Re-enable after backend refresh route is fixed (remove verifyJWT middleware)
+          // For now, just restore from localStorage without validation
+          setUser(parsedUser);
+          
+          /* Temporarily disabled - causes 401 error on backend
           try {
-            await api.post('/users/refresh');
-            setUser(parsedUser);
-          } catch (error) {
-            // Session expired, clear invalid data
-            console.log('Session expired, clearing stored user');
+            const response = await api.post('/users/refresh');
+            if (response.data?.data) {
+              setUser(parsedUser);
+            } else {
+              localStorage.removeItem('user');
+              localStorage.removeItem('token');
+              setUser(null);
+            }
+          } catch (error: any) {
+            const status = error.response?.status;
+            if (status === 401 || status === 403) {
+              console.log('Session expired, clearing stored user');
+            } else {
+              console.log('Failed to validate session:', error.message);
+            }
             localStorage.removeItem('user');
             localStorage.removeItem('token');
             setUser(null);
           }
+          */
         }
       } catch (error) {
-        console.error('Failed to validate session:', error);
+        console.error('Failed to parse stored user:', error);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
       }

@@ -9,6 +9,6 @@ const router=Router();
 router.route("/register").post(upload.single("avatar"),registerUser);
 router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT,logoutUser)
-router.route("/refresh").post(verifyJWT,refreshAccessToken)
+router.route("/refresh").post(refreshAccessToken)  // Remove verifyJWT since refresh checks cookies itself
 
 export default router;
