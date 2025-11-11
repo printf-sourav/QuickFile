@@ -33,24 +33,17 @@ const baseURL = resolveBaseURL();
 
 const api = axios.create({
   baseURL,
-  timeout: 120_000,
+  timeout: 30_000, // 30 seconds timeout
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 
-api.interceptors.request.use(cfg => {
-  
-  const tokenFromKey = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const token = tokenFromKey || user?.token;
-  if (token) cfg.headers['Authorization'] = `Bearer ${token}`;
-  return cfg;
-});
+// No request interceptor needed - cookies are automatically sent with withCredentials: true
 
 api.interceptors.response.use(
   res => res,
   err => {
-    
+    // Handle errors
     return Promise.reject(err);
   }
 );
