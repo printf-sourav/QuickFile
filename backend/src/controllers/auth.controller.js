@@ -79,9 +79,14 @@ const loginUser = asyncHandler(async(req,res)=>{
 
     const {accessToken,refreshToken} = await generateNewAccessAndRefreshToken(user._id)
 
-    const loggedInUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    )
+    // Use existing user object instead of extra DB query
+    const loggedInUser = {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+    }
     const isProd = process.env.NODE_ENV === 'production'
     const accessMaxAgeMs = 24 * 60 * 60 * 1000; 
     const refreshMaxAgeMs = 10 * 24 * 60 * 60 * 1000; 
