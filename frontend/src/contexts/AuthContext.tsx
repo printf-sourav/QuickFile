@@ -92,8 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await api.post('/users/logout');
-    } catch (error) {
-      console.error('Logout request failed:', error);
+    } catch (error: any) {
+      // Ignore 401 errors - token already expired, which is fine for logout
+      if (error.response?.status !== 401) {
+        console.error('Logout request failed:', error);
+      }
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
